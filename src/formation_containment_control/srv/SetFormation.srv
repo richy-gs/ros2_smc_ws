@@ -1,0 +1,12 @@
+# SetFormation.srv
+# Service to set the formation configuration
+
+# Request
+string formation_type  # "square", "triangle", "line", "tetrahedron", "custom"
+float64 formation_scale  # Scale factor for the formation
+float64[] custom_positions  # Custom positions [x1,y1,z1, x2,y2,z2, ...] if type is "custom"
+---
+# Response
+bool success
+string message
+

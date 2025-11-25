@@ -1,0 +1,76 @@
+# ROS2 build artifacts
+build/
+install/
+log/
+devel/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+eggs/
+.eggs/
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.pydevproject
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+
+# C extensions
+*.c
+*.o
+
+# Colcon
+colcon.meta
+
+# ROS bag files (optional - uncomment if you don't want to track bags)
+# *.bag
+# *.db3
+
+# Core dumps
+core
+

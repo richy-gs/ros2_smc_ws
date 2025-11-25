@@ -1,0 +1,33 @@
+# MAV Formation Control Parameters
+# This file contains all ROS2 parameters for the formation control system
+# Edit this file to modify parameters for all nodes
+
+# Virtual Leader Trajectory Node parameters
+virtual_leader_trajectory_node:
+  ros__parameters:
+    waypoint_file: "config/waypoints.txt"  # Relative to package share directory
+    trajectory_speed: 0.3  # m/s - Speed of virtual leader trajectory
+    waypoint_tolerance: 0.05  # m - Distance tolerance to consider waypoint reached
+    max_yaw_rate: 0.0  # rad/s - Maximum yaw rate for smooth orientation changes
+    frame_id: "map"  # TF frame ID
+    publish_rate: 50.0  # Hz - Publishing rate
+
+# Formation Controller Node parameters
+formation_controller_node:
+  ros__parameters:
+    num_leaders: 2 # Number of leader drones
+    formation_radius: 2.0  # m - Radius of formation around virtual leader
+    formation_angle_offset: 0.0  # rad - Angular offset for formation arrangement
+    frame_id: "map"  # TF frame ID
+    publish_rate: 50.0  # Hz - Publishing rate
+
+# Follower Controller Node parameters
+follower_controller_node:
+  ros__parameters:
+    num_leaders: 2  # Number of leader drones (must match formation_controller_node)
+    followers_per_leader: 3  # Number of followers per leader
+    follower_radius: 0.5  # m - Radius of followers around their leader
+    follower_angle_offset: 0.0  # rad - Angular offset for follower arrangement
+    frame_id: "map"  # TF frame ID
+    publish_rate: 50.0  # Hz - Publishing rate
+

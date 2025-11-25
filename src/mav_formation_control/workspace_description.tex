@@ -1,0 +1,308 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{enumitem}
+
+\geometry{margin=1in}
+
+% Code listing style
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    showstringspaces=false
+}
+
+\title{MAV Formation Control System\\ROS2 Workspace Documentation}
+\author{ROS2 Formation Control Package}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+This ROS2 workspace implements a hierarchical formation control system for Micro Aerial Vehicles (MAVs) using ROS2 Humble. The system enables coordinated movement of multiple drones in a structured formation, following a virtual leader that traverses a predefined trajectory. The architecture supports a two-level hierarchy: \textit{leader} drones that follow the virtual leader, and \textit{follower} drones that follow their respective leaders.
+
+\section{System Architecture}
+
+The formation control system consists of three main ROS2 nodes that work together to achieve coordinated multi-agent flight:
+
+\begin{enumerate}
+    \item \textbf{Virtual Leader Trajectory Node}: Generates and publishes the trajectory of a virtual leader based on waypoints
+    \item \textbf{Formation Controller Node}: Controls the position of leader drones around the virtual leader
+    \item \textbf{Follower Controller Node}: Controls the position of follower drones around their respective leaders
+\end{enumerate}
+
+\subsection{Communication Flow}
+
+The system follows a hierarchical communication pattern:
+\begin{itemize}
+    \item The \textit{virtual leader trajectory node} publishes the virtual leader's pose
+    \item The \textit{formation controller node} subscribes to the virtual leader's pose and publishes poses for each leader drone
+    \item The \textit{follower controller node} subscribes to each leader's pose and publishes poses for each follower drone
+\end{itemize}
+
+\section{Node Descriptions}
+
+\subsection{Virtual Leader Trajectory Node}
+
+\textbf{File}: \texttt{src/virtual\_leader\_trajectory\_node.cpp}
+
+This node generates a smooth trajectory for a virtual leader by interpolating between waypoints defined in a configuration file. The virtual leader serves as the reference point for the entire formation.
+
+\subsubsection{Functionality}
+\begin{itemize}
+    \item Loads waypoints from a text file (\texttt{config/waypoints.txt})
+    \item Interpolates between waypoints at a configurable speed
+    \item Implements smooth yaw (orientation) transitions with rate limiting
+    \item Loops through waypoints continuously
+    \item Publishes the virtual leader's pose and visualization markers
+\end{itemize}
+
+\subsubsection{Key Features}
+\begin{itemize}
+    \item \textbf{Waypoint Navigation}: Moves from waypoint to waypoint with configurable tolerance
+    \item \textbf{Smooth Orientation}: Implements maximum yaw rate limiting for realistic orientation changes
+    \item \textbf{Trajectory Interpolation}: Uses linear interpolation between waypoints based on trajectory speed
+    \item \textbf{Visualization}: Publishes a green sphere marker representing the virtual leader in RViz2
+\end{itemize}
+
+\subsubsection{Published Topics}
+\begin{itemize}
+    \item \texttt{/virtual\_leader/pose} (geometry\_msgs/PoseStamped): Current pose of the virtual leader
+    \item \texttt{/virtual\_leader/marker} (visualization\_msgs/Marker): Visualization marker (green sphere)
+\end{itemize}
+
+\subsubsection{Parameters}
+\begin{itemize}
+    \item \texttt{waypoint\_file}: Path to waypoint file (default: \texttt{config/waypoints.txt})
+    \item \texttt{trajectory\_speed}: Speed of virtual leader in m/s (default: 1.0)
+    \item \texttt{waypoint\_tolerance}: Distance tolerance to consider waypoint reached in meters (default: 0.1)
+    \item \texttt{max\_yaw\_rate}: Maximum yaw rate in rad/s for smooth orientation changes (default: 1.0)
+    \item \texttt{frame\_id}: TF frame ID (default: \texttt{map})
+    \item \texttt{publish\_rate}: Publishing frequency in Hz (default: 50.0)
+\end{itemize}
+
+\subsection{Formation Controller Node}
+
+\textbf{File}: \texttt{src/formation\_controller\_node.cpp}
+
+This node maintains a circular formation of leader drones around the virtual leader. The leaders are arranged at equal angular intervals around the virtual leader at a specified radius.
+
+\subsubsection{Functionality}
+\begin{itemize}
+    \item Subscribes to the virtual leader's pose
+    \item Calculates desired positions for each leader drone based on formation geometry
+    \item Rotates formation offsets based on the virtual leader's orientation
+    \item Publishes poses for each leader drone
+    \item Publishes visualization markers for all leaders
+\end{itemize}
+
+\subsubsection{Formation Geometry}
+The leaders are arranged in a circle around the virtual leader:
+\begin{equation}
+\begin{aligned}
+x_i &= x_{VL} + r_f \cos\left(\frac{2\pi i}{N} + \theta_0\right) \cos(\psi) - r_f \sin\left(\frac{2\pi i}{N} + \theta_0\right) \sin(\psi) \\
+y_i &= y_{VL} + r_f \cos\left(\frac{2\pi i}{N} + \theta_0\right) \sin(\psi) + r_f \sin\left(\frac{2\pi i}{N} + \theta_0\right) \cos(\psi) \\
+z_i &= z_{VL}
+\end{aligned}
+\end{equation}
+where:
+\begin{itemize}
+    \item $(x_i, y_i, z_i)$ is the position of leader $i$
+    \item $(x_{VL}, y_{VL}, z_{VL})$ is the virtual leader position
+    \item $r_f$ is the formation radius
+    \item $N$ is the number of leaders
+    \item $\psi$ is the virtual leader's yaw angle
+    \item $\theta_0$ is the formation angle offset
+\end{itemize}
+
+\subsubsection{Published Topics}
+\begin{itemize}
+    \item \texttt{/leader\_<i>/pose} (geometry\_msgs/PoseStamped): Pose of leader $i$
+    \item \texttt{/formation\_leaders/markers} (visualization\_msgs/MarkerArray): Visualization markers for all leaders (opaque colored spheres)
+\end{itemize}
+
+\subsubsection{Parameters}
+\begin{itemize}
+    \item \texttt{num\_leaders}: Number of leader drones (default: 2)
+    \item \texttt{formation\_radius}: Radius of formation around virtual leader in meters (default: 2.0)
+    \item \texttt{formation\_angle\_offset}: Angular offset for formation arrangement in radians (default: 0.0)
+    \item \texttt{frame\_id}: TF frame ID (default: \texttt{map})
+    \item \texttt{publish\_rate}: Publishing frequency in Hz (default: 50.0)
+\end{itemize}
+
+\subsection{Follower Controller Node}
+
+\textbf{File}: \texttt{src/follower\_controller\_node.cpp}
+
+This node maintains a circular formation of follower drones around each leader. Each leader has its own group of followers arranged in a circle.
+
+\subsubsection{Functionality}
+\begin{itemize}
+    \item Subscribes to each leader's pose
+    \item Calculates desired positions for each follower based on follower geometry
+    \item Rotates follower offsets based on their leader's orientation
+    \item Publishes poses for each follower drone
+    \item Publishes visualization markers for all followers (transparent, matching leader color)
+\end{itemize}
+
+\subsubsection{Follower Geometry}
+Similar to the leader formation, followers are arranged in a circle around their leader:
+\begin{equation}
+\begin{aligned}
+x_{ij} &= x_{L_i} + r_{fol} \cos\left(\frac{2\pi j}{M} + \phi_0\right) \cos(\psi_i) - r_{fol} \sin\left(\frac{2\pi j}{M} + \phi_0\right) \sin(\psi_i) \\
+y_{ij} &= y_{L_i} + r_{fol} \cos\left(\frac{2\pi j}{M} + \phi_0\right) \sin(\psi_i) + r_{fol} \sin\left(\frac{2\pi j}{M} + \phi_0\right) \cos(\psi_i) \\
+z_{ij} &= z_{L_i}
+\end{aligned}
+\end{equation}
+where:
+\begin{itemize}
+    \item $(x_{ij}, y_{ij}, z_{ij})$ is the position of follower $j$ of leader $i$
+    \item $(x_{L_i}, y_{L_i}, z_{L_i})$ is the position of leader $i$
+    \item $r_{fol}$ is the follower radius
+    \item $M$ is the number of followers per leader
+    \item $\psi_i$ is leader $i$'s yaw angle
+    \item $\phi_0$ is the follower angle offset
+\end{itemize}
+
+\subsubsection{Published Topics}
+\begin{itemize}
+    \item \texttt{/follower\_<leader\_id>\_<follower\_id>/pose} (geometry\_msgs/PoseStamped): Pose of each follower
+    \item \texttt{/formation\_followers/markers} (visualization\_msgs/MarkerArray): Visualization markers for all followers (transparent colored spheres)
+\end{itemize}
+
+\subsubsection{Parameters}
+\begin{itemize}
+    \item \texttt{num\_leaders}: Number of leader drones (must match formation controller) (default: 2)
+    \item \texttt{followers\_per\_leader}: Number of followers per leader (default: 2)
+    \item \texttt{follower\_radius}: Radius of followers around their leader in meters (default: 1.0)
+    \item \texttt{follower\_angle\_offset}: Angular offset for follower arrangement in radians (default: 0.0)
+    \item \texttt{frame\_id}: TF frame ID (default: \texttt{map})
+    \item \texttt{publish\_rate}: Publishing frequency in Hz (default: 50.0)
+\end{itemize}
+
+\section{Visualization}
+
+The system provides visualization markers for RViz2:
+
+\begin{itemize}
+    \item \textbf{Virtual Leader}: Green sphere (opaque)
+    \item \textbf{Leader Drones}: Colored spheres (opaque) - Red, Blue, Yellow, Magenta
+    \item \textbf{Follower Drones}: Colored spheres (transparent, alpha=0.5) - Same color as their leader
+\end{itemize}
+
+\section{Configuration}
+
+\subsection{Waypoint File Format}
+
+Waypoints are defined in \texttt{config/waypoints.txt} with the format:
+\begin{lstlisting}[language=bash]
+# Comments start with #
+x y z
+\end{lstlisting}
+
+Example:
+\begin{lstlisting}[language=bash]
+0.0 0.0 1.0
+2.0 0.0 1.0
+2.0 2.0 1.0
+0.0 2.0 1.0
+\end{lstlisting}
+
+\subsection{Parameter Configuration}
+
+All parameters are configured in \texttt{config/params.yaml}. The system supports:
+\begin{itemize}
+    \item Configurable number of leaders and followers
+    \item Adjustable formation and follower radii
+    \item Configurable trajectory speed
+    \item Adjustable publishing rates
+    \item Customizable frame IDs
+\end{itemize}
+
+\section{Launch System}
+
+The system is launched using ROS2 launch files:
+
+\begin{itemize}
+    \item \texttt{formation\_control.launch.py}: Launches all three nodes with parameters from \texttt{params.yaml}
+    \item \texttt{formation\_control\_with\_rviz.launch.py}: Launches the system with RViz2 visualization
+    \item \texttt{rviz.launch.py}: Launches only RViz2 with pre-configured visualization
+\end{itemize}
+
+\section{Usage}
+
+\subsection{Building the Package}
+
+\begin{lstlisting}[language=bash]
+cd ~/robotarium/ros2_smc_ws
+colcon build --packages-select mav_formation_control
+source install/setup.bash
+\end{lstlisting}
+
+\subsection{Running the System}
+
+\begin{lstlisting}[language=bash]
+# Launch complete system
+ros2 launch mav_formation_control formation_control.launch.py
+
+# Launch with RViz2
+ros2 launch mav_formation_control formation_control_with_rviz.launch.py
+\end{lstlisting}
+
+\subsection{Parameter Override Example}
+
+\begin{lstlisting}[language=bash]
+ros2 launch mav_formation_control formation_control.launch.py \
+  num_leaders:=4 \
+  followers_per_leader:=3 \
+  trajectory_speed:=1.5 \
+  formation_radius:=3.0
+\end{lstlisting}
+
+\section{Technical Details}
+
+\subsection{Dependencies}
+
+The package depends on:
+\begin{itemize}
+    \item \texttt{rclcpp}: ROS2 C++ client library
+    \item \texttt{geometry\_msgs}: Geometric message types
+    \item \texttt{visualization\_msgs}: Visualization markers
+    \item \texttt{tf2}, \texttt{tf2\_ros}, \texttt{tf2\_geometry\_msgs}: Transform library
+    \item \texttt{ament\_index\_cpp}: Package resource access
+\end{itemize}
+
+\subsection{Coordinate Frames}
+
+The system operates in the \texttt{map} frame by default. All poses are published with respect to this frame, and the formation geometry is calculated in this coordinate system.
+
+\section{Conclusion}
+
+This ROS2 workspace provides a complete hierarchical formation control system for MAVs. The three-node architecture enables scalable formation control with configurable geometry, supporting various formation patterns through parameter adjustment. The system is designed for simulation and can be extended for real-world deployment with appropriate hardware interfaces.
+
+\end{document}
+

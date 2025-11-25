@@ -1,0 +1,157 @@
+# Formation-Containment Control Parameters
+# Based on: "Collision-Free Formation-Containment Control Based on Adaptive
+# Sliding Mode Strategy for a Quadrotor Fleet Under Disturbances"
+# Authors: Carlos Katt, Herman Castañeda (2025)
+
+# ROS 2 Parameter File Format - applies to all nodes
+/**:
+  ros__parameters:
+    # ============================================================================
+    # AGENT CONFIGURATION
+    # ============================================================================
+    # Number of follower agents (n in paper)
+    n_followers: 4
+
+    # Number of leader agents (m in paper)
+    n_leaders: 4
+
+    # Graph topology: "paper", "complete", "ring"
+    # "paper" uses the topology from Figure 1 of the paper
+    topology: "paper"
+
+    # ============================================================================
+    # FORMATION CONFIGURATION
+    # ============================================================================
+    # Formation type: "square", "triangle", "tetrahedron", "circle", "line"
+    # The paper uses "square" initially, then switches to "tetrahedron" at t=62.5s
+    formation_type: "square"
+
+    # Formation scale (meters) - size of the leader formation
+    formation_scale: 1.0
+
+    # Formation height (meters) - base altitude
+    formation_height: 1.0
+
+    # ============================================================================
+    # CONTROL PARAMETERS (From Section 4 of paper)
+    # ============================================================================
+    # Sliding surface parameter λ (Equation 26)
+    # λ_i > 0 for all i
+    lambda_gain: 3.0
+
+    # Adaptive law precision parameter α (Equation 30)
+    # Controls rate of gain adaptation - larger = more aggressive
+    alpha: 4.0
+
+    # Adaptive law control effort parameter β (Equation 30)
+    # Helps minimize oscillation - usually a small value
+    beta: 0.125
+
+    # Safety distance γ_s (Equation 6) for collision avoidance (meters)
+    safety_distance: 1.0
+
+    # Enable/disable collision avoidance
+    use_collision_avoidance: true
+
+    # ============================================================================
+    # TIMING CONFIGURATION
+    # ============================================================================
+    # Control loop rate (Hz)
+    control_rate: 50.0
+
+    # Control timestep (seconds) - should match 1/control_rate
+    dt: 0.02
+
+    # ============================================================================
+    # DRONE CONFIGURATION
+    # ============================================================================
+    # Drone topic prefix (for Crazyswarm2 compatibility)
+    drone_prefix: "cf_"
+
+    # Follower drone IDs (F1, F2, F3, F4)
+    follower_ids: [1, 2, 3, 4]
+
+    # Leader drone IDs (L1, L2, L3, L4)
+    leader_ids: [5, 6, 7, 8]
+
+    # ============================================================================
+    # FRAME CONFIGURATION
+    # ============================================================================
+    # World frame for all transformations
+    world_frame: "world"
+
+    # ============================================================================
+    # INITIAL CONDITIONS (From Section 4 of paper)
+    # ============================================================================
+    # Follower initial positions [x, y, z] for each follower
+    # F1(0) = [-0.7, 1.0, 0.0]
+    # F2(0) = [-2.0, 0.0, 0.0]
+    # F3(0) = [0.7, -1.0, 0.0]
+    # F4(0) = [1.0, 1.0, 0.0]
+    initial_follower_positions: [-0.7, 1.0, 0.0, -2.0, 0.0, 0.0, 0.7, -1.0, 0.0, 1.0, 1.0, 0.0]
+
+    # Leader initial positions [x, y, z] for each leader
+    # L1(0) = [1.0, 0.0, 0.0]
+    # L2(0) = [-1.0, 0.0, 0.0]
+    # L3(0) = [0.0, 1.0, 0.0]
+    # L4(0) = [0.0, -1.0, 0.0]
+    initial_leader_positions: [1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0]
+
+    # Initial yaw angles (all π as in paper)
+    initial_yaw: 3.14159
+
+    # ============================================================================
+    # VIRTUAL LEADER TRAJECTORY
+    # ============================================================================
+    # Trajectory type: "lemniscate", "circle", "hover", "square"
+    # Paper uses 3D lemniscate (infinity/figure-8) trajectory (Figure 5)
+    trajectory_type: "lemniscate"
+
+    # Trajectory scale (meters)
+    trajectory_scale: 2.0
+
+    # Trajectory height (meters)
+    trajectory_height: 1.0
+
+    # Trajectory period (seconds) for one complete cycle
+    trajectory_period: 60.0
+
+    # Start delay before motion begins (seconds)
+    # Allows time for formation convergence
+    start_delay: 5.0
+
+    # ============================================================================
+    # SIMULATION CONFIGURATION
+    # ============================================================================
+    # Simulation rate (Hz) - higher than control for accuracy
+    simulation_rate: 100.0
+
+    # Enable Von Kármán turbulence (as in paper Section 4)
+    use_turbulence: false
+
+    # Time to start turbulence (seconds) - paper uses t=45s
+    turbulence_start_time: 45.0
+
+    # Turbulence intensity (0.0 to 1.0)
+    turbulence_intensity: 0.3
+
+    # ============================================================================
+    # VISUALIZATION
+    # ============================================================================
+    # Trajectory history length (number of points)
+    trajectory_length: 500
+
+    # Visualization update rate (Hz)
+    visualization_rate: 10.0
+
+    # ============================================================================
+    # CRAZYSWARM2 BRIDGE
+    # ============================================================================
+    # Control mode: "velocity", "position", "full_state"
+    control_mode: "velocity"
+
+    # Use Crazyswarm2 takeoff/land services
+    use_takeoff_service: true
+
+    # Default takeoff height (meters)
+    default_height: 1.0

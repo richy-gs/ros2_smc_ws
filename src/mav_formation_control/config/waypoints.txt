@@ -1,0 +1,12 @@
+# Waypoint file for virtual leader trajectory
+# Format: x y z (one waypoint per line)
+# Comments start with #
+
+0.0 0.0 1.0
+2.0 0.0 1.0
+2.0 2.0 1.0
+0.0 2.0 1.0
+0.0 0.0 1.0
+-2.0 0.0 1.0
+-2.0 -2.0 1.0
+0.0 -2.0 1.0
