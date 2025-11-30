@@ -1,7 +1,13 @@
-# Formation-Containment Control Parameters
+# ============================================================================
+# Formation-Containment Control Parameters - MANUAL OFFSETS EXAMPLE
+# ============================================================================
+# This configuration demonstrates loading leader offsets from a custom file.
+# The formation shape is defined in config/leader_offsets.txt
+#
 # Based on: "Collision-Free Formation-Containment Control Based on Adaptive
 # Sliding Mode Strategy for a Quadrotor Fleet Under Disturbances"
 # Authors: Carlos Katt, Herman Castañeda (2025)
+# ============================================================================
 
 # ROS 2 Parameter File Format - applies to all nodes
 /**:
@@ -10,41 +16,42 @@
     # AGENT CONFIGURATION
     # ============================================================================
     # Number of follower agents (n in paper)
-    n_followers: 6
+    n_followers: 1
 
     # Number of leader agents (m in paper)
-    n_leaders: 3
+    # NOTE: This should match the number of leaders defined in leader_offsets.txt
+    n_leaders: 5
 
     # Graph topology: "paper", "complete", "ring"
-    # "paper" uses the topology from Figure 1 of the paper
     topology: "ring"
 
     # ============================================================================
-    # FORMATION CONFIGURATION
+    # FORMATION CONFIGURATION - CUSTOM OFFSETS
     # ============================================================================
-    # Formation type: "square", "triangle", "tetrahedron", "circle", "line"
-    # The paper uses "square" initially, then switches to "tetrahedron" at t=62.5s
-    formation_type: "circle"
+    # Formation type: set to "custom" to use offsets from YAML file
+    formation_type: "custom"
 
-    # Formation scale (meters) - size of the leader formation
-    formation_scale: 2.0
+    # Path to the leader offsets YAML file
+    # Supports absolute paths or paths relative to the package share directory
+    # Set by launch file or provide absolute path here
+    offsets_file: ""  # Will be set by launch file (config/leader_offsets.yaml)
+
+    # Formation scale (meters) - used as fallback if file not found
+    formation_scale: 1.0
 
     # Formation height (meters) - base altitude
-    formation_height: 0.5
+    formation_height: 0.0
 
     # ============================================================================
     # CONTROL PARAMETERS (From Section 4 of paper)
     # ============================================================================
     # Sliding surface parameter λ (Equation 26)
-    # λ_i > 0 for all i
     lambda_gain: 3.0
 
     # Adaptive law precision parameter α (Equation 30)
-    # Controls rate of gain adaptation - larger = more aggressive
     alpha: 4.0
 
     # Adaptive law control effort parameter β (Equation 30)
-    # Helps minimize oscillation - usually a small value
     beta: 0.125
 
     # Safety distance γ_s (Equation 6) for collision avoidance (meters)
@@ -53,8 +60,7 @@
     # Enable/disable collision avoidance
     use_collision_avoidance: true
 
-    # Maximum velocity limit (m/s) - reduces initial movement speed
-    # Set to 0.0 to disable limit
+    # Maximum velocity limit (m/s)
     max_velocity: 1.0
 
     # ============================================================================
@@ -63,114 +69,88 @@
     # Control loop rate (Hz)
     control_rate: 50.0
 
-    # Control timestep (seconds) - should match 1/control_rate
+    # Control timestep (seconds)
     dt: 0.02
 
     # ============================================================================
     # DRONE CONFIGURATION
     # ============================================================================
-    # Drone topic prefix (for Crazyswarm2 compatibility)
+    # Drone topic prefix
     drone_prefix: "cf"
 
-    # Follower drone IDs (F1, F2, F3, F4, F5, F6)
+    # Follower drone IDs
     follower_ids: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
-    # Leader drone IDs (L1, L2, L3, L4, L5, L6)
+    # Leader drone IDs - must match n_leaders
     leader_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     # ============================================================================
     # FRAME CONFIGURATION
     # ============================================================================
-    # World frame for all transformations
     world_frame: "world"
 
     # ============================================================================
-    # INITIAL CONDITIONS (From Section 4 of paper)
+    # INITIAL CONDITIONS
     # ============================================================================
-    # Follower initial positions [x, y, z] for each follower
-    # Distributed inside the leader formation (smaller radius)
-    # F1(0) = [0.0, 0.0, 0.0]
-    # F2(0) = [1.0, 0.0, 0.0]
-    # F3(0) = [1.0, 0.0, 0.0]
-    # F4(0) = [1.0, 1.0, 0.0]
-    # F5(0) = [2.0, 0.0, 0.0]
-    # F6(0) = [2.0, 1.0, 0.0]
-    # F7(0) = [3.0, 0.0, 0.0]
-    # F8(0) = [3.0, 1.0, 0.0]
-    # F9(0) = [4.0, 0.0, 0.0]
-    # F10(0) = [4.0, 1.0, 0.0]
-    # F11(0) = [5.0, 0.0, 0.0]
-    # F12(0) = [5.0, 1.0, 0.0]
+    # Follower initial position
     initial_follower_positions: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 2.0, 0.0, 0.0, 2.0, 1.0, 0.0, 3.0, 0.0, 0.0, 3.0, 1.0, 0.0, 4.0, 0.0, 0.0, 4.0, 1.0, 0.0, 5.0, 0.0, 0.0, 5.0, 1.0, 0.0]
 
-    # Leader initial positions [x, y, z] for each leader
-    # L1(0) = [-1.0, 0.0, 0.0]
-    # L2(0) = [-1.0, 1.0, 0.0]
-    # L3(0) = [-2.0, 0.0, 0.0]
-    # L4(0) = [-2.0, 1.0, 0.0]
-    # L5(0) = [-3.0, 0.0, 0.0]
-    # L6(0) = [-3.0, 1.0, 0.0]
-    # L7(0) = [-4.0, 0.0, 0.0]
-    # L8(0) = [-4.0, 1.0, 0.0]
-    # L9(0) = [-5.0, 0.0, 0.0]
-    # L10(0) = [-5.0, 1.0, 0.0]
+    # Leader initial positions
     initial_leader_positions: [-1.0, 0.0, 0.0, -1.0, 1.0, 0.0, -2.0, 0.0, 0.0, -2.0, 1.0, 0.0, -3.0, 0.0, 0.0, -3.0, 1.0, 0.0, -4.0, 0.0, 0.0, -4.0, 1.0, 0.0, -5.0, 0.0, 0.0, -5.0, 1.0, 0.0]
 
-    # Initial yaw angles (all π as in paper)
+    # Initial yaw angles
     initial_yaw: 3.14159
 
     # ============================================================================
     # VIRTUAL LEADER TRAJECTORY
     # ============================================================================
+    
     # Trajectory type: "lemniscate", "circle", "hover", "square"
-    # Paper uses 3D lemniscate (infinity/figure-8) trajectory (Figure 5)
-    trajectory_type: "lemniscate"
+    trajectory_type: "circle"
 
     # Trajectory scale (meters)
-    trajectory_scale: 2.0
+    trajectory_scale: 1.0
 
     # Trajectory height (meters)
     trajectory_height: 1.0
 
-    # Trajectory period (seconds) for one complete cycle
-    trajectory_period: 30.0
+    # Trajectory period (seconds)
+    trajectory_period: 20.0
 
     # Start delay before motion begins (seconds)
-    # Allows time for formation convergence
     start_delay: 5.0
+
+      # ==========================================================================
+      # TASKs:
+      # - Establecer el punto de inicio de la trayectoria (x, y, z)
+      # - Establecer la orientación inicial del líder virtual (yaw)
+      # - Establecer la velocidad de la trayectoria
+      # - Establecer la aceleración de la trayectoria
+      # - Establecer la desaceleración de la trayectoria
+      # - Establecer la deceleración de la trayectoria
+      # - Establecer la deceleración de la trayectoria
+      # ==========================================================================
 
     # ============================================================================
     # SIMULATION CONFIGURATION
     # ============================================================================
-    # Simulation rate (Hz) - higher than control for accuracy
     simulation_rate: 100.0
-
-    # Enable Von Kármán turbulence (as in paper Section 4)
     use_turbulence: false
-
-    # Time to start turbulence (seconds) - paper uses t=45s
     turbulence_start_time: 45.0
-
-    # Turbulence intensity (0.0 to 1.0)
     turbulence_intensity: 0.3
 
     # ============================================================================
     # VISUALIZATION
     # ============================================================================
-    # Trajectory history length (number of points)
     trajectory_length: 500
-
-    # Visualization update rate (Hz)
     visualization_rate: 10.0
 
     # ============================================================================
     # CRAZYSWARM2 BRIDGE
     # ============================================================================
-    # Control mode: "velocity", "position", "full_state"
     control_mode: "velocity"
-
-    # Use Crazyswarm2 takeoff/land services
     use_takeoff_service: true
-
-    # Default takeoff height (meters)
     default_height: 1.0
+
+
+
