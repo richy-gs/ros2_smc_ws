@@ -17,9 +17,12 @@ relative to the virtual leader:
   χ_{d,j} = χ_0 + h_j  for j = n+1, ..., n+m
 
 Followers converge to positions inside the convex hull formed by leaders.
+
+Supports loading custom leader offsets from file for manual formation definition.
 """
 
 import numpy as np
+import os
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 
@@ -27,6 +30,73 @@ from ..core.graph_theory import InteractionNetwork, create_interaction_network
 from ..core.dynamics import ReducedTrackingModel, QuadrotorState
 from ..core.convex_hull import ConvexHullContainment, FormationGeometry
 from .sgasmc import SGASMCController, SGASMCParameters, ContainmentErrorComputer
+
+
+def load_offsets_from_file(filepath: str) -> Optional[Tuple[np.ndarray, str]]:
+    """
+    Load leader offsets from a YAML file.
+    
+    YAML format:
+        formation_name: "pentagon"
+        description: "Pentagon formation"
+        leaders:
+          - id: 1
+            offset: [1.0, 0.0, 0.0, 0.0]
+          - id: 2
+            offset: [-1.0, 0.0, 0.0, 0.0]
+    
+    Args:
+        filepath: Path to the YAML offsets file
+        
+    Returns:
+        Tuple of (offsets array shape (n_leaders, 4), formation_name) or None if error
+    """
+    if not os.path.exists(filepath):
+        return None
+    
+    try:
+        import yaml
+        
+        with open(filepath, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        if data is None or 'leaders' not in data:
+            print(f"Error: Invalid YAML format in {filepath}. Missing 'leaders' key.")
+            return None
+        
+        formation_name = data.get('formation_name', 'custom')
+        leaders = data['leaders']
+        
+        offsets = []
+        leader_ids = []
+        
+        for leader in leaders:
+            leader_id = leader.get('id')
+            offset = leader.get('offset')
+            
+            if leader_id is None or offset is None:
+                print(f"Warning: Skipping invalid leader entry: {leader}")
+                continue
+            
+            # Ensure offset has 4 elements [x, y, z, yaw]
+            if len(offset) < 4:
+                offset = list(offset) + [0.0] * (4 - len(offset))
+            
+            leader_ids.append(leader_id)
+            offsets.append(offset[:4])
+        
+        if not offsets:
+            return None
+        
+        # Sort by leader ID and return offsets array
+        sorted_indices = np.argsort(leader_ids)
+        offsets_array = np.array(offsets)[sorted_indices]
+        
+        return offsets_array, formation_name
+        
+    except Exception as e:
+        print(f"Error loading offsets from {filepath}: {e}")
+        return None
 
 
 @dataclass
@@ -41,9 +111,12 @@ class FormationConfig:
     topology: str = "paper"  # "paper", "complete", "ring"
     
     # Formation geometry for leaders
-    formation_type: str = "square"  # "square", "triangle", "tetrahedron", "circle"
+    formation_type: str = "square"  # "square", "triangle", "tetrahedron", "circle", "custom"
     formation_scale: float = 1.0
     formation_height: float = 1.0
+    
+    # Custom offsets file path (used when formation_type is "custom")
+    offsets_file: str = ""
     
     # Control parameters (from paper Section 4)
     lambda_gain: float = 3.0
@@ -55,6 +128,9 @@ class FormationConfig:
     
     # Control rate
     dt: float = 0.01
+    
+    # Maximum velocity limit (m/s) - 0 means no limit
+    max_velocity: float = 0.0
     
     # Enable collision avoidance
     use_collision_avoidance: bool = True
@@ -332,7 +408,8 @@ class FormationController:
             lambda_gain=self.config.lambda_gain,
             alpha=self.config.alpha,
             beta=self.config.beta,
-            dt=self.config.dt
+            dt=self.config.dt,
+            max_velocity=self.config.max_velocity
         )
         
         # Create leader controllers
@@ -376,11 +453,39 @@ class FormationController:
         self.follower_velocities = np.zeros((self.config.n_followers, 4))
     
     def _create_formation_offsets(self) -> np.ndarray:
-        """Create formation offsets for leaders based on configuration."""
+        """
+        Create formation offsets for leaders based on configuration.
+        
+        Supports:
+        - Predefined formations: square, triangle, tetrahedron, circle, line
+        - Custom formations: loaded from YAML offsets_file when formation_type is "custom"
+        
+        Returns:
+            Array of offsets, shape (n_leaders, 3) or (n_leaders, 4)
+        """
         ftype = self.config.formation_type.lower()
         scale = self.config.formation_scale
         height = self.config.formation_height
         n_leaders = self.config.n_leaders
+        
+        # Check for custom offsets file (YAML format)
+        if ftype == "custom" or self.config.offsets_file:
+            result = load_offsets_from_file(self.config.offsets_file)
+            if result is not None:
+                offsets, formation_name = result
+                # Validate number of leaders matches
+                if len(offsets) != n_leaders:
+                    print(f"Warning: Offsets file has {len(offsets)} leaders, "
+                          f"but config expects {n_leaders}. Using file offsets.")
+                    # Adjust n_leaders to match file
+                    self.config.n_leaders = len(offsets)
+                print(f"Loaded '{formation_name}' formation with {len(offsets)} leaders "
+                      f"from: {self.config.offsets_file}")
+                return offsets[:, :3]  # Return x, y, z offsets (ignoring yaw for geometry)
+            else:
+                print(f"Warning: Could not load offsets from {self.config.offsets_file}. "
+                      f"Using default circle formation.")
+                return FormationGeometry.circle(n_leaders, scale, height)
         
         if ftype == "square" and n_leaders == 4:
             return FormationGeometry.square(scale, height)
