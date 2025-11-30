@@ -82,30 +82,54 @@ class TrajectoryGenerator:
     
     @staticmethod
     def circle(t: float, radius: float = 2.0,
-               height: float = 1.0, period: float = 20.0) -> tuple:
+               height: float = 1.0, period: float = 20.0,
+               transition_time: float = 5.0) -> tuple:
         """
-        Circular trajectory.
+        Circular trajectory with smooth start from origin.
+        
+        Uses a spiral transition from (0, 0, height) to the full circle,
+        ensuring no abrupt jump after takeoff.
         
         Args:
             t: Time in seconds
             radius: Circle radius
             height: Height
             period: Time for one circle
+            transition_time: Time to transition from origin to full circle
             
         Returns:
             Tuple of (position, velocity, yaw)
         """
         omega = 2 * np.pi / period
         
-        x = radius * np.cos(omega * t)
-        y = radius * np.sin(omega * t)
+        # Smooth radius ramp from 0 to full radius (spiral out)
+        if t < transition_time:
+            # Smooth ramp using cosine for continuous velocity
+            ramp = 0.5 * (1.0 - np.cos(np.pi * t / transition_time))
+            ramp_dot = 0.5 * np.pi / transition_time * np.sin(np.pi * t / transition_time)
+        else:
+            ramp = 1.0
+            ramp_dot = 0.0
+        
+        effective_radius = radius * ramp
+        
+        # Position (spiral that becomes circle)
+        x = effective_radius * np.sin(omega * t)  # sin so x(0)=0
+        y = effective_radius * (1.0 - np.cos(omega * t))  # 1-cos so y(0)=0
         z = height
         
-        x_dot = -radius * omega * np.sin(omega * t)
-        y_dot = radius * omega * np.cos(omega * t)
+        # Velocity (product rule: d/dt[r(t)*f(t)] = r'(t)*f(t) + r(t)*f'(t))
+        x_dot = (radius * ramp_dot * np.sin(omega * t) + 
+                 effective_radius * omega * np.cos(omega * t))
+        y_dot = (radius * ramp_dot * (1.0 - np.cos(omega * t)) + 
+                 effective_radius * omega * np.sin(omega * t))
         z_dot = 0.0
         
-        yaw = omega * t + np.pi/2  # Tangent to circle
+        # Yaw follows velocity direction
+        if np.hypot(x_dot, y_dot) > 1e-6:
+            yaw = np.arctan2(y_dot, x_dot)
+        else:
+            yaw = 0.0
         yaw_dot = omega
         
         position = np.array([x, y, z, yaw])
@@ -141,41 +165,62 @@ class TrajectoryGenerator:
     def square_waypoints(t: float, size: float = 2.0,
                         height: float = 1.0, speed: float = 0.5) -> tuple:
         """
-        Square waypoint trajectory.
+        Square waypoint trajectory with smooth start from origin.
+        
+        Includes initial segment from (0, 0, height) to first waypoint,
+        ensuring no abrupt jump after takeoff.
         
         Args:
             t: Time
-            size: Square size
+            size: Square size (diamond shape centered at origin)
             height: Height
             speed: Movement speed
             
         Returns:
             Tuple of (position, velocity)
         """
-        # Waypoints
+        # Waypoints - include origin as starting point
         waypoints = np.array([
+            [0, 0, height],       # Start from origin (matches hover position)
             [size, 0, height],
             [0, size, height],
             [-size, 0, height],
             [0, -size, height],
         ])
         
-        # Perimeter and current position along it
-        perimeter = 4 * size * np.sqrt(2)
-        segment_length = perimeter / 4
+        # Calculate segment lengths (origin to first waypoint, then between vertices)
+        n_waypoints = len(waypoints)
+        segment_lengths = []
+        for i in range(n_waypoints):
+            start = waypoints[i]
+            end = waypoints[(i + 1) % n_waypoints]
+            segment_lengths.append(np.linalg.norm(end - start))
         
-        distance = (speed * t) % perimeter
-        segment = int(distance / segment_length) % 4
-        segment_progress = (distance % segment_length) / segment_length
+        total_length = sum(segment_lengths)
         
-        # Interpolate
+        # Find current position along path
+        distance = (speed * t) % total_length
+        
+        # Find which segment we're on
+        cumulative = 0.0
+        segment = 0
+        for i, seg_len in enumerate(segment_lengths):
+            if cumulative + seg_len > distance:
+                segment = i
+                break
+            cumulative += seg_len
+        
+        # Progress within current segment
+        segment_progress = (distance - cumulative) / segment_lengths[segment]
+        
+        # Interpolate position
         start = waypoints[segment]
-        end = waypoints[(segment + 1) % 4]
+        end = waypoints[(segment + 1) % n_waypoints]
         
         position = start + segment_progress * (end - start)
         
         # Velocity direction
-        direction = (end - start) / np.linalg.norm(end - start)
+        direction = (end - start) / segment_lengths[segment]
         velocity_3d = direction * speed
         
         yaw = np.arctan2(direction[1], direction[0])

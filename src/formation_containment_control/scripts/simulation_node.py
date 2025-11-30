@@ -158,7 +158,12 @@ class SimulationNode(Node):
         
         # Initialize followers
         for i in range(self.n_followers):
-            pos = np.array(init_follower_pos[i*3:(i+1)*3]) if len(init_follower_pos) >= (i+1)*3 else np.zeros(3)
+            if len(init_follower_pos) >= (i+1)*3:
+                pos = np.array(init_follower_pos[i*3:(i+1)*3])
+            else:
+                # Generate position in a circle if not enough defined
+                pos = self._generate_circular_position(i, self.n_followers, radius=1.5, z=0.0)
+                self.get_logger().warn(f"Follower {i}: No initial position defined, using generated: {pos}")
             drone = SimulatedDrone(
                 drone_id=self.follower_ids[i] if i < len(self.follower_ids) else i,
                 initial_position=pos
@@ -167,7 +172,12 @@ class SimulationNode(Node):
         
         # Initialize leaders
         for i in range(self.n_leaders):
-            pos = np.array(init_leader_pos[i*3:(i+1)*3]) if len(init_leader_pos) >= (i+1)*3 else np.zeros(3)
+            if len(init_leader_pos) >= (i+1)*3:
+                pos = np.array(init_leader_pos[i*3:(i+1)*3])
+            else:
+                # Generate position in a circle if not enough defined
+                pos = self._generate_circular_position(i, self.n_leaders, radius=1.0, z=0.0)
+                self.get_logger().warn(f"Leader {i}: No initial position defined, using generated: {pos}")
             drone = SimulatedDrone(
                 drone_id=self.leader_ids[i] if i < len(self.leader_ids) else self.n_followers + i,
                 initial_position=pos
@@ -187,6 +197,25 @@ class SimulationNode(Node):
         self.get_logger().info(
             f"Simulation Node started: {self.n_followers} followers, {self.n_leaders} leaders"
         )
+    
+    def _generate_circular_position(self, index: int, total: int, 
+                                     radius: float = 1.0, z: float = 0.0) -> np.ndarray:
+        """
+        Generate a position on a circle for agents without defined positions.
+        
+        Args:
+            index: Agent index (0-based)
+            total: Total number of agents
+            radius: Circle radius
+            z: Height
+            
+        Returns:
+            Position array [x, y, z]
+        """
+        angle = 2 * np.pi * index / total
+        x = radius * np.cos(angle)
+        y = radius * np.sin(angle)
+        return np.array([x, y, z])
     
     def _setup_ros_interface(self):
         """Setup ROS2 publishers and subscribers."""
