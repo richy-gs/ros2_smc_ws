@@ -70,6 +70,9 @@ class SGASMCParameters:
     
     # Perturbation bound (L from paper)
     perturbation_bound: float = 1.0
+    
+    # Maximum velocity limit (m/s) - 0 means no limit
+    max_velocity: float = 0.0
 
 
 @dataclass
@@ -319,7 +322,31 @@ class SGASMCController:
         # Simple velocity command: v = -u_aux - λ*error
         velocity_cmd = -u_aux - self.params.lambda_gain * error
         
+        # Apply velocity limit if specified
+        if self.params.max_velocity > 0:
+            velocity_cmd = self._limit_velocity(velocity_cmd)
+        
         return velocity_cmd
+    
+    def _limit_velocity(self, velocity: np.ndarray) -> np.ndarray:
+        """
+        Limit velocity magnitude while preserving direction.
+        
+        Args:
+            velocity: Velocity command [vx, vy, vz, vyaw]
+            
+        Returns:
+            Limited velocity command
+        """
+        # Limit linear velocity (x, y, z)
+        linear_vel = velocity[:3]
+        speed = np.linalg.norm(linear_vel)
+        
+        if speed > self.params.max_velocity:
+            linear_vel = linear_vel * (self.params.max_velocity / speed)
+        
+        # Return with original yaw rate (index 3)
+        return np.array([linear_vel[0], linear_vel[1], linear_vel[2], velocity[3]])
     
     def get_state(self) -> dict:
         """
