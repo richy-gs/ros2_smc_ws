@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from formation_containment_control.controllers.formation_controller import (
     FormationController, FormationConfig
 )
-from formation_containment_control.core.dynamics import QuadrotorState
+# from formation_containment_control.core.dynamics import QuadrotorState
 from formation_containment_control.utils.math_utils import (
     quaternion_to_euler, euler_to_quaternion
 )
@@ -100,6 +100,9 @@ class FormationContainmentNode(Node):
         self.declare_parameter('formation_scale', 1.0)
         self.declare_parameter('formation_height', 1.0)
         
+        # Custom offsets file path (used when formation_type is "custom")
+        self.declare_parameter('offsets_file', '')
+        
         # Control parameters (from paper)
         self.declare_parameter('lambda_gain', 3.0)
         self.declare_parameter('alpha', 4.0)
@@ -112,6 +115,9 @@ class FormationContainmentNode(Node):
         
         # Collision avoidance
         self.declare_parameter('use_collision_avoidance', True)
+        
+        # Velocity limit
+        self.declare_parameter('max_velocity', 0.0)  # 0 = no limit
         
         # Drone naming
         self.declare_parameter('drone_prefix', 'cf')
@@ -131,6 +137,7 @@ class FormationContainmentNode(Node):
         self.formation_type = self.get_parameter('formation_type').value
         self.formation_scale = self.get_parameter('formation_scale').value
         self.formation_height = self.get_parameter('formation_height').value
+        self.offsets_file = self.get_parameter('offsets_file').value
         
         self.lambda_gain = self.get_parameter('lambda_gain').value
         self.alpha = self.get_parameter('alpha').value
@@ -140,6 +147,7 @@ class FormationContainmentNode(Node):
         self.control_rate = self.get_parameter('control_rate').value
         self.dt = self.get_parameter('dt').value
         self.use_collision_avoidance = self.get_parameter('use_collision_avoidance').value
+        self.max_velocity = self.get_parameter('max_velocity').value
         
         self.drone_prefix = self.get_parameter('drone_prefix').value
         self.follower_ids = self.get_parameter('follower_ids').value
@@ -156,15 +164,21 @@ class FormationContainmentNode(Node):
             formation_type=self.formation_type,
             formation_scale=self.formation_scale,
             formation_height=self.formation_height,
+            offsets_file=self.offsets_file,
             lambda_gain=self.lambda_gain,
             alpha=self.alpha,
             beta=self.beta,
             safety_distance=self.safety_distance,
             dt=self.dt,
-            use_collision_avoidance=self.use_collision_avoidance
+            use_collision_avoidance=self.use_collision_avoidance,
+            max_velocity=self.max_velocity
         )
         
         self.formation_controller = FormationController(config)
+        
+        # Log offsets file usage
+        if self.offsets_file:
+            self.get_logger().info(f"Using custom offsets from: {self.offsets_file}")
         
         # State storage
         self.leader_states = np.zeros((self.n_leaders, 4))
@@ -486,7 +500,7 @@ class FormationContainmentNode(Node):
         hull_marker.id = 0
         hull_marker.type = Marker.LINE_STRIP
         hull_marker.action = Marker.ADD
-        hull_marker.scale.x = 0.02  # Line width
+        hull_marker.scale.x = 0.1  # Line width
         hull_marker.color.r = 0.0
         hull_marker.color.g = 1.0
         hull_marker.color.b = 1.0
