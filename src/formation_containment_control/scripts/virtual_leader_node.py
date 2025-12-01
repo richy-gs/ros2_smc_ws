@@ -41,32 +41,37 @@ class TrajectoryGenerator:
     
     @staticmethod
     def infinity_3d(t: float, scale: float = 2.0, 
-                    height: float = 1.0, period: float = 30.0) -> tuple:
+                    height: float = 1.0, period: float = 30.0,
+                    initial_position: np.ndarray = None) -> tuple:
         """
         3D infinity (lemniscate) trajectory - as used in paper (Figure 5).
         
         Parametric equations:
-        x(t) = scale * sin(ωt)
-        y(t) = scale * sin(ωt) * cos(ωt)  (or scale * sin(2ωt)/2)
-        z(t) = height + amplitude * sin(ωt/2)
+        x(t) = x0 + scale * sin(ωt)
+        y(t) = y0 + scale * sin(ωt) * cos(ωt)  (or scale * sin(2ωt)/2)
+        z(t) = z0 + amplitude * sin(ωt/2)
         
         Args:
             t: Time in seconds
             scale: Size of the trajectory
-            height: Base height
+            height: Base height (used only if initial_position is None)
             period: Time for one complete cycle
+            initial_position: Initial position offset [x0, y0, z0]
             
         Returns:
             Tuple of (position, velocity, yaw)
         """
+        if initial_position is None:
+            initial_position = np.array([0.0, 0.0, height])
+        
         omega = 2 * np.pi / period
         
-        # Position
-        x = scale * np.sin(omega * t)
-        y = scale * np.sin(omega * t) * np.cos(omega * t)
-        z = height + 0.3 * np.sin(omega * t / 2)  # Small vertical variation
+        # Position with initial offset
+        x = initial_position[0] + scale * np.sin(omega * t)
+        y = initial_position[1] + scale * np.sin(omega * t) * np.cos(omega * t)
+        z = initial_position[2] + 0.3 * np.sin(omega * t / 2)  # Small vertical variation
         
-        # Velocity (analytical derivatives)
+        # Velocity (analytical derivatives) - unchanged by offset
         x_dot = scale * omega * np.cos(omega * t)
         y_dot = scale * omega * (np.cos(omega * t)**2 - np.sin(omega * t)**2)
         z_dot = 0.15 * omega * np.cos(omega * t / 2)
@@ -83,23 +88,28 @@ class TrajectoryGenerator:
     @staticmethod
     def circle(t: float, radius: float = 2.0,
                height: float = 1.0, period: float = 20.0,
-               transition_time: float = 5.0) -> tuple:
+               transition_time: float = 5.0,
+               initial_position: np.ndarray = None) -> tuple:
         """
-        Circular trajectory with smooth start from origin.
+        Circular trajectory with smooth start from initial position.
         
-        Uses a spiral transition from (0, 0, height) to the full circle,
+        Uses a spiral transition from initial_position to the full circle,
         ensuring no abrupt jump after takeoff.
         
         Args:
             t: Time in seconds
             radius: Circle radius
-            height: Height
+            height: Height (used only if initial_position is None)
             period: Time for one circle
-            transition_time: Time to transition from origin to full circle
+            transition_time: Time to transition from initial position to full circle
+            initial_position: Initial position offset [x0, y0, z0]
             
         Returns:
             Tuple of (position, velocity, yaw)
         """
+        if initial_position is None:
+            initial_position = np.array([0.0, 0.0, height])
+        
         omega = 2 * np.pi / period
         
         # Smooth radius ramp from 0 to full radius (spiral out)
@@ -113,10 +123,10 @@ class TrajectoryGenerator:
         
         effective_radius = radius * ramp
         
-        # Position (spiral that becomes circle)
-        x = effective_radius * np.sin(omega * t)  # sin so x(0)=0
-        y = effective_radius * (1.0 - np.cos(omega * t))  # 1-cos so y(0)=0
-        z = height
+        # Position (spiral that becomes circle) with initial offset
+        x = initial_position[0] + effective_radius * np.sin(omega * t)  # sin so x(0)=x0
+        y = initial_position[1] + effective_radius * (1.0 - np.cos(omega * t))  # 1-cos so y(0)=y0
+        z = initial_position[2]
         
         # Velocity (product rule: d/dt[r(t)*f(t)] = r'(t)*f(t) + r(t)*f'(t))
         x_dot = (radius * ramp_dot * np.sin(omega * t) + 
@@ -138,57 +148,71 @@ class TrajectoryGenerator:
         return position, velocity
     
     @staticmethod
-    def hover(center: np.ndarray = None, height: float = 1.0) -> tuple:
+    def hover(center: np.ndarray = None, height: float = 1.0,
+              initial_position: np.ndarray = None) -> tuple:
         """
-        Stationary hover at a point.
+        Stationary hover at a point (initial position).
         
         Args:
-            center: Center position [x, y] or [x, y, z]
-            height: Height if not specified in center
+            center: Center position [x, y] or [x, y, z] (deprecated, use initial_position)
+            height: Height if not specified in center/initial_position
+            initial_position: Initial position [x0, y0, z0] - preferred parameter
             
         Returns:
             Tuple of (position, velocity)
         """
-        if center is None:
-            center = np.array([0.0, 0.0, height, 0.0])
+        # Prefer initial_position over center for consistency
+        if initial_position is not None:
+            position = np.array([initial_position[0], initial_position[1], 
+                                initial_position[2], 0.0])
+        elif center is None:
+            position = np.array([0.0, 0.0, height, 0.0])
         elif len(center) == 2:
-            center = np.array([center[0], center[1], height, 0.0])
+            position = np.array([center[0], center[1], height, 0.0])
         elif len(center) == 3:
-            center = np.array([center[0], center[1], center[2], 0.0])
+            position = np.array([center[0], center[1], center[2], 0.0])
+        else:
+            position = center
         
-        position = center
         velocity = np.zeros(4)
         
         return position, velocity
     
     @staticmethod
     def square_waypoints(t: float, size: float = 2.0,
-                        height: float = 1.0, speed: float = 0.5) -> tuple:
+                        height: float = 1.0, speed: float = 0.5,
+                        initial_position: np.ndarray = None) -> tuple:
         """
-        Square waypoint trajectory with smooth start from origin.
+        Square waypoint trajectory with smooth start from initial position.
         
-        Includes initial segment from (0, 0, height) to first waypoint,
+        Includes initial segment from initial_position to first waypoint,
         ensuring no abrupt jump after takeoff.
         
         Args:
             t: Time
-            size: Square size (diamond shape centered at origin)
-            height: Height
+            size: Square size (diamond shape centered at initial position)
+            height: Height (used only if initial_position is None)
             speed: Movement speed
+            initial_position: Initial position offset [x0, y0, z0]
             
         Returns:
             Tuple of (position, velocity)
         """
-        # Waypoints - include origin as starting point
+        if initial_position is None:
+            initial_position = np.array([0.0, 0.0, height])
+        
+        x0, y0, z0 = initial_position[0], initial_position[1], initial_position[2]
+        
+        # Waypoints - offset by initial position
         waypoints = np.array([
-            [0, 0, height],       # Start from origin (matches hover position)
-            [size, 0, height],
-            [0, size, height],
-            [-size, 0, height],
-            [0, -size, height],
+            [x0, y0, z0],               # Start from initial position
+            [x0 + size, y0, z0],
+            [x0, y0 + size, z0],
+            [x0 - size, y0, z0],
+            [x0, y0 - size, z0],
         ])
         
-        # Calculate segment lengths (origin to first waypoint, then between vertices)
+        # Calculate segment lengths (initial position to first waypoint, then between vertices)
         n_waypoints = len(waypoints)
         segment_lengths = []
         for i in range(n_waypoints):
@@ -248,6 +272,11 @@ class VirtualLeaderNode(Node):
         self.declare_parameter('world_frame', 'world')
         self.declare_parameter('start_delay', 5.0)  # Wait before starting motion
         
+        # Initial position parameters for the virtual leader
+        self.declare_parameter('initial_position_x', 0.0)
+        self.declare_parameter('initial_position_y', 0.0)
+        self.declare_parameter('initial_position_z', 1.0)
+        
         self.trajectory_type = self.get_parameter('trajectory_type').value
         self.scale = self.get_parameter('trajectory_scale').value
         self.height = self.get_parameter('trajectory_height').value
@@ -255,6 +284,13 @@ class VirtualLeaderNode(Node):
         self.rate = self.get_parameter('publish_rate').value
         self.frame = self.get_parameter('world_frame').value
         self.start_delay = self.get_parameter('start_delay').value
+        
+        # Initial position offset
+        self.initial_position = np.array([
+            self.get_parameter('initial_position_x').value,
+            self.get_parameter('initial_position_y').value,
+            self.get_parameter('initial_position_z').value
+        ])
         
         # Publishers
         self.pose_pub = self.create_publisher(
@@ -280,7 +316,9 @@ class VirtualLeaderNode(Node):
         self.timer = self.create_timer(1.0 / self.rate, self._timer_callback)
         
         self.get_logger().info(
-            f"Virtual Leader Node started with trajectory: {self.trajectory_type}"
+            f"Virtual Leader Node started with trajectory: {self.trajectory_type}, "
+            f"initial_position: [{self.initial_position[0]:.2f}, "
+            f"{self.initial_position[1]:.2f}, {self.initial_position[2]:.2f}]"
         )
     
     def _timer_callback(self):
@@ -291,31 +329,36 @@ class VirtualLeaderNode(Node):
         # Apply start delay (hover at initial position)
         if t < self.start_delay:
             position, velocity = TrajectoryGenerator.hover(
-                np.array([0.0, 0.0, self.height])
+                initial_position=self.initial_position
             )
         else:
             # Adjust time for delay
             t_traj = t - self.start_delay
             
-            # Generate trajectory based on type
+            # Generate trajectory based on type - all offset by initial_position
             if self.trajectory_type == 'lemniscate':
                 position, velocity = TrajectoryGenerator.infinity_3d(
-                    t_traj, self.scale, self.height, self.period
+                    t_traj, self.scale, self.height, self.period,
+                    initial_position=self.initial_position
                 )
             elif self.trajectory_type == 'circle':
                 position, velocity = TrajectoryGenerator.circle(
-                    t_traj, self.scale, self.height, self.period
+                    t_traj, self.scale, self.height, self.period,
+                    initial_position=self.initial_position
                 )
             elif self.trajectory_type == 'hover':
                 position, velocity = TrajectoryGenerator.hover(
-                    np.array([0.0, 0.0, self.height])
+                    initial_position=self.initial_position
                 )
             elif self.trajectory_type == 'square':
                 position, velocity = TrajectoryGenerator.square_waypoints(
-                    t_traj, self.scale, self.height
+                    t_traj, self.scale, self.height,
+                    initial_position=self.initial_position
                 )
             else:
-                position, velocity = TrajectoryGenerator.hover()
+                position, velocity = TrajectoryGenerator.hover(
+                    initial_position=self.initial_position
+                )
         
         # Publish pose
         pose_msg = PoseStamped()

@@ -106,12 +106,12 @@
     # ============================================================================
     
     # Trajectory type: "lemniscate", "circle", "hover", "square"
-    trajectory_type: "circle"
+    trajectory_type: "lemniscate"
 
     # Trajectory scale (meters)
     trajectory_scale: 1.0
 
-    # Trajectory height (meters)
+    # Trajectory height (meters) - deprecated, use initial_position_z instead
     trajectory_height: 1.0
 
     # Trajectory period (seconds)
@@ -120,16 +120,18 @@
     # Start delay before motion begins (seconds)
     start_delay: 5.0
 
-      # ==========================================================================
-      # TASKs:
-      # - Establecer el punto de inicio de la trayectoria (x, y, z)
-      # - Establecer la orientación inicial del líder virtual (yaw)
-      # - Establecer la velocidad de la trayectoria
-      # - Establecer la aceleración de la trayectoria
-      # - Establecer la desaceleración de la trayectoria
-      # - Establecer la deceleración de la trayectoria
-      # - Establecer la deceleración de la trayectoria
-      # ==========================================================================
+    # ============================================================================
+    # VIRTUAL LEADER INITIAL POSITION
+    # ============================================================================
+    # Initial position of the virtual leader (meters)
+    # All trajectories will be offset/centered around this position.
+    # - lemniscate: Center of the figure-8 will be at this position
+    # - circle: Starting point and center offset
+    # - hover: Stationary position
+    # - square: Center of the diamond shape
+    initial_position_x: 0.0
+    initial_position_y: 0.0
+    initial_position_z: 1.0
 
     # ============================================================================
     # SIMULATION CONFIGURATION
