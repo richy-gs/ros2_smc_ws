@@ -68,21 +68,21 @@ def generate_launch_description():
     
     trajectory_type_arg = DeclareLaunchArgument(
         'trajectory_type',
-        default_value='circle',
+        default_value='lemniscate',
         description='Virtual leader trajectory: circle, lemniscate, hover, square'
     )
     
-    n_leaders_arg = DeclareLaunchArgument(
-        'n_leaders',
-        default_value='5',
-        description='Number of leader drones (should match offsets file)'
-    )
+    # n_leaders_arg = DeclareLaunchArgument(
+    #     'n_leaders',
+    #     default_value='5',
+    #     description='Number of leader drones (should match offsets file)'
+    # )
     
-    n_followers_arg = DeclareLaunchArgument(
-        'n_followers',
-        default_value='1',
-        description='Number of follower drones'
-    )
+    # n_followers_arg = DeclareLaunchArgument(
+    #     'n_followers',
+    #     default_value='1',
+    #     description='Number of follower drones'
+    # )
     
     # =========================================================================
     # Nodes
@@ -96,14 +96,16 @@ def generate_launch_description():
         output='screen',
         parameters=[
             config_file,
-            {
-                'n_leaders': LaunchConfiguration('n_leaders'),
-                'n_followers': LaunchConfiguration('n_followers'),
-            }
+            # {
+            #     # 'n_leaders': LaunchConfiguration('n_leaders'),
+            #     # 'n_followers': LaunchConfiguration('n_followers'),
+            # }
         ]
     )
     
     # Virtual leader node - generates trajectory
+    # Note: trajectory_type is now controlled by the YAML config file
+    # Override via launch: ros2 launch ... trajectory_type:=circle
     virtual_leader_node = Node(
         package='formation_containment_control',
         executable='virtual_leader_node.py',
@@ -111,9 +113,9 @@ def generate_launch_description():
         output='screen',
         parameters=[
             config_file,
-            {
-                'trajectory_type': LaunchConfiguration('trajectory_type'),
-            }
+            # {
+            #     'trajectory_type': LaunchConfiguration('trajectory_type'),
+            # }
         ]
     )
     
@@ -126,28 +128,22 @@ def generate_launch_description():
         parameters=[
             config_file,
             {
-                'formation_type': 'custom',
+                # 'formation_type': 'custom',
                 'offsets_file': LaunchConfiguration('offsets_file'),
-                'n_leaders': LaunchConfiguration('n_leaders'),
-                'n_followers': LaunchConfiguration('n_followers'),
+                # 'n_leaders': LaunchConfiguration('n_leaders'),
+                # 'n_followers': LaunchConfiguration('n_followers'),
             }
         ]
     )
     
     # Visualization node
-    # visualization_node = Node(
-    #     package='formation_containment_control',
-    #     executable='visualization_node.py',
-    #     name='visualization_node',
-    #     output='screen',
-    #     parameters=[
-    #         config_file,
-    #         {
-    #             'n_leaders': LaunchConfiguration('n_leaders'),
-    #             'n_followers': LaunchConfiguration('n_followers'),
-    #         }
-    #     ]
-    # )
+    visualization_node = Node(
+        package='formation_containment_control',
+        executable='visualization_node.py',
+        name='visualization_node',
+        output='screen',
+        parameters=[config_file]
+    )
     
     # RViz2 node
     rviz_node = Node(
@@ -163,14 +159,14 @@ def generate_launch_description():
         use_rviz_arg,
         offsets_file_arg,
         trajectory_type_arg,
-        n_leaders_arg,
-        n_followers_arg,
+        # n_leaders_arg,
+        # n_followers_arg,
         
         # Nodes
         simulation_node,
         virtual_leader_node,
         formation_controller_node,
-        # visualization_node,
+        visualization_node,
         rviz_node,
     ])
 

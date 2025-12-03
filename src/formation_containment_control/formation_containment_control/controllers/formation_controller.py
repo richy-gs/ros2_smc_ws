@@ -673,6 +673,35 @@ class FormationController:
             'status': self.check_formation_status()
         }
     
+    def get_leader_target_positions(self) -> np.ndarray:
+        """
+        Get target positions for all leaders.
+        
+        Target = virtual_leader_position + formation_offset
+        
+        Returns:
+            Array of target positions, shape (n_leaders, 4) as [x, y, z, yaw]
+        """
+        targets = np.zeros((self.config.n_leaders, 4))
+        for i, controller in enumerate(self.leader_controllers):
+            targets[i] = self.virtual_leader_state + controller.formation_offset
+        return targets
+    
+    def get_follower_target_positions(self) -> np.ndarray:
+        """
+        Get target positions for all followers.
+        
+        Target positions are computed from Laplacian weights to be inside
+        the convex hull formed by leaders.
+        
+        Returns:
+            Array of target positions, shape (n_followers, 4) as [x, y, z, yaw]
+        """
+        targets = np.zeros((self.config.n_followers, 4))
+        for i, controller in enumerate(self.follower_controllers):
+            targets[i] = controller.get_desired_position(self.leader_states)
+        return targets
+    
     def reset(self):
         """Reset all controllers."""
         for controller in self.leader_controllers:

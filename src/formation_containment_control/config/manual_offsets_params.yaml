@@ -20,7 +20,7 @@
 
     # Number of leader agents (m in paper)
     # NOTE: This should match the number of leaders defined in leader_offsets.txt
-    n_leaders: 5
+    n_leaders: 4
 
     # Graph topology: "paper", "complete", "ring"
     topology: "ring"
@@ -37,16 +37,18 @@
     offsets_file: ""  # Will be set by launch file (config/leader_offsets.yaml)
 
     # Formation scale (meters) - used as fallback if file not found
+    # Does not work with custom offsets
     formation_scale: 1.0
 
     # Formation height (meters) - base altitude
+    # Does not work with custom offsets
     formation_height: 0.0
 
     # ============================================================================
     # CONTROL PARAMETERS (From Section 4 of paper)
     # ============================================================================
     # Sliding surface parameter λ (Equation 26)
-    lambda_gain: 3.0
+    lambda_gain: 1.0
 
     # Adaptive law precision parameter α (Equation 30)
     alpha: 4.0
@@ -61,6 +63,7 @@
     use_collision_avoidance: true
 
     # Maximum velocity limit (m/s)
+    # Does not change the velocity of the drones
     max_velocity: 1.0
 
     # ============================================================================
@@ -88,15 +91,42 @@
     # FRAME CONFIGURATION
     # ============================================================================
     world_frame: "world"
+    
+    # ============================================================================
+    # AUTO-ENABLE CONFIGURATION
+    # ============================================================================
+    # auto_enable: true  -> Formation starts immediately (simulation mode)
+    # auto_enable: false -> Formation waits for /formation/enable signal (Crazyswarm2 mode)
+    auto_enable: false
 
     # ============================================================================
     # INITIAL CONDITIONS
     # ============================================================================
     # Follower initial position
-    initial_follower_positions: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 2.0, 0.0, 0.0, 2.0, 1.0, 0.0, 3.0, 0.0, 0.0, 3.0, 1.0, 0.0, 4.0, 0.0, 0.0, 4.0, 1.0, 0.0, 5.0, 0.0, 0.0, 5.0, 1.0, 0.0]
+    initial_follower_positions: [
+    0.0, 0.0, 0.0, 
+    0.0, 1.0, 0.0, 
+    1.0, 0.0, 0.0, 
+    1.0, 1.0, 0.0, 
+    2.0, 0.0, 0.0, 
+    2.0, 1.0, 0.0, 
+    3.0, 0.0, 0.0, 
+    3.0, 1.0, 0.0, 
+    4.0, 0.0, 0.0, 
+    4.0, 1.0, 0.0]
 
     # Leader initial positions
-    initial_leader_positions: [-1.0, 0.0, 0.0, -1.0, 1.0, 0.0, -2.0, 0.0, 0.0, -2.0, 1.0, 0.0, -3.0, 0.0, 0.0, -3.0, 1.0, 0.0, -4.0, 0.0, 0.0, -4.0, 1.0, 0.0, -5.0, 0.0, 0.0, -5.0, 1.0, 0.0]
+    initial_leader_positions: [
+    -1.0, 0.0, 0.0, 
+    -1.0, 1.0, 0.0, 
+    -2.0, 0.0, 0.0, 
+    -2.0, 1.0, 0.0, 
+    -3.0, 0.0, 0.0, 
+    -3.0, 1.0, 0.0, 
+    -4.0, 0.0, 0.0, 
+    -4.0, 1.0, 0.0, 
+    -5.0, 0.0, 0.0,
+    -5.0, 1.0, 0.0]
 
     # Initial yaw angles
     initial_yaw: 3.14159
@@ -106,19 +136,20 @@
     # ============================================================================
     
     # Trajectory type: "lemniscate", "circle", "hover", "square"
-    trajectory_type: "lemniscate"
+    trajectory_type: "hover"
 
     # Trajectory scale (meters)
     trajectory_scale: 1.0
 
     # Trajectory height (meters) - deprecated, use initial_position_z instead
-    trajectory_height: 1.0
+    # Does not work with custom offsets
+    trajectory_height: 0.5
 
     # Trajectory period (seconds)
-    trajectory_period: 20.0
+    trajectory_period: 60.0
 
     # Start delay before motion begins (seconds)
-    start_delay: 5.0
+    start_delay: 15.0
 
     # ============================================================================
     # VIRTUAL LEADER INITIAL POSITION
@@ -144,15 +175,31 @@
     # ============================================================================
     # VISUALIZATION
     # ============================================================================
-    trajectory_length: 500
+    trajectory_length: 5000
     visualization_rate: 10.0
 
     # ============================================================================
     # CRAZYSWARM2 BRIDGE
     # ============================================================================
-    control_mode: "velocity"
-    use_takeoff_service: true
+    # RECOMMENDED: default_height should match initial_position_z of virtual leader
     default_height: 1.0
+    
+    # GoTo rate limiting (Hz) - prevents flooding crazyflie_server
+    # Recommended: 5-10 Hz for stable operation
+    goto_rate: 5.0
+    
+    # GoTo command duration (seconds) - time for drone to reach target
+    goto_duration: 1.5
+    
+    # Position threshold (meters) - minimum position change to trigger GoTo
+    # Prevents sending redundant commands when target hasn't changed
+    position_threshold: 0.5
+    
+    # Takeoff duration (seconds) - time to wait for takeoff to complete
+    takeoff_duration: 5.0
+    
+    # Hover duration (seconds) - stabilization time before starting formation
+    hover_duration: 30.0
 
 
 

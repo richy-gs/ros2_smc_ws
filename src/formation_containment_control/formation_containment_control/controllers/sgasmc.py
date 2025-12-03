@@ -496,6 +496,12 @@ class ContainmentErrorComputer:
         """
         Compute complete error for a single follower.
         
+        When collision avoidance is enabled, uses the full collision-avoidance
+        augmented error from Equation 24: e_ac = (L_ζ - I_{n+m} - L)⊗I_s * ξ
+        
+        This already includes the basic containment error, so we use it directly
+        instead of adding it to the basic error.
+        
         Args:
             follower_idx: Index of the follower
             follower_state: Follower's current state [x,y,z,ψ]
@@ -509,27 +515,30 @@ class ContainmentErrorComputer:
         Returns:
             Tuple of (error, error_dot) for use in SGASMC
         """
-        # Basic containment error
-        weights = self.network.laplacian.containment_weights[follower_idx, :]
-        desired_pos = weights @ leader_states
-        desired_vel = weights @ leader_velocities
-        
-        error = desired_pos - follower_state
-        error_dot = desired_vel - follower_velocity
-        
         if use_collision_avoidance and all_states is not None:
-            # Add collision avoidance term
+            # Use full collision-avoidance augmented error from Equation 24
+            # e_ac = (L_ζ - I_{n+m} - L)⊗I_s * ξ
+            # This already includes the basic containment error e_c, plus h_c
             ca_errors = self.compute_collision_avoidance_error(all_states)
-            ca_error = ca_errors[follower_idx, :] if len(ca_errors) > follower_idx else np.zeros(self.state_dim)
-            
-            # Blend containment and collision avoidance
-            # The collision avoidance error modifies the desired position
-            error = error + ca_error
+            error = ca_errors[follower_idx, :] if len(ca_errors) > follower_idx else np.zeros(self.state_dim)
             
             if all_velocities is not None:
                 ca_errors_vel = self.compute_collision_avoidance_error(all_velocities)
-                ca_error_dot = ca_errors_vel[follower_idx, :] if len(ca_errors_vel) > follower_idx else np.zeros(self.state_dim)
-                error_dot = error_dot + ca_error_dot
+                error_dot = ca_errors_vel[follower_idx, :] if len(ca_errors_vel) > follower_idx else np.zeros(self.state_dim)
+            else:
+                # Fall back to basic velocity error if all_velocities not provided
+                weights = self.network.laplacian.containment_weights[follower_idx, :]
+                desired_vel = weights @ leader_velocities
+                error_dot = desired_vel - follower_velocity
+        else:
+            # Basic containment error (no collision avoidance)
+            # e_c = ξ_dc - ξ_i (Equation 18)
+            weights = self.network.laplacian.containment_weights[follower_idx, :]
+            desired_pos = weights @ leader_states
+            desired_vel = weights @ leader_velocities
+            
+            error = desired_pos - follower_state
+            error_dot = desired_vel - follower_velocity
         
         return error, error_dot
 

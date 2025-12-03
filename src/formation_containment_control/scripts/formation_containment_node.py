@@ -25,7 +25,7 @@ from typing import Dict, List, Optional
 
 # ROS2 message types
 from geometry_msgs.msg import PoseStamped, Twist, Point, Vector3
-from std_msgs.msg import Header, ColorRGBA, Bool, Float64MultiArray
+from std_msgs.msg import Header, ColorRGBA, Bool, Float64MultiArray, Empty
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Odometry
 
@@ -82,6 +82,8 @@ class FormationContainmentNode(Node):
         # State variables
         self.virtual_leader_received = False
         self.agent_states_received = {i: False for i in range(self.n_total)}
+        # Auto-enable for simulation (True), wait for bridge enable for Crazyswarm2 (False)
+        self.controller_enabled = self.auto_enable
         
         self.get_logger().info(
             f"Formation Containment Node initialized with "
@@ -126,6 +128,9 @@ class FormationContainmentNode(Node):
         
         # Frame
         self.declare_parameter('world_frame', 'world')
+        
+        # Auto-enable: True for simulation, False when using Crazyswarm2 bridge
+        self.declare_parameter('auto_enable', True)
     
     def _get_parameters(self):
         """Get parameters from ROS2 parameter server."""
@@ -154,6 +159,9 @@ class FormationContainmentNode(Node):
         self.leader_ids = self.get_parameter('leader_ids').value
         
         self.world_frame = self.get_parameter('world_frame').value
+        
+        # Auto-enable for simulation mode (no bridge)
+        self.auto_enable = self.get_parameter('auto_enable').value
     
     def _init_controller(self):
         """Initialize the formation controller."""
@@ -209,6 +217,14 @@ class FormationContainmentNode(Node):
             PoseStamped,
             '/virtual_leader/pose',
             self._virtual_leader_callback,
+            qos_reliable
+        )
+        
+        # Enable/disable from mission controller
+        self.enable_sub = self.create_subscription(
+            Bool,
+            '/formation/enable',
+            self._enable_callback,
             qos_reliable
         )
         
@@ -293,6 +309,12 @@ class FormationContainmentNode(Node):
             self._visualization_callback
         )
     
+    def _enable_callback(self, msg: Bool):
+        """Handle enable/disable from mission controller."""
+        self.controller_enabled = msg.data
+        status = "ENABLED" if msg.data else "DISABLED"
+        self.get_logger().info(f"Formation controller {status}")
+    
     def _virtual_leader_callback(self, msg: PoseStamped):
         """Handle virtual leader pose updates."""
         # Extract position
@@ -349,6 +371,9 @@ class FormationContainmentNode(Node):
         if not self.virtual_leader_received:
             return
         
+        if not self.controller_enabled:
+            return  # Skip control when disabled
+        
         # Update formation controller with current states
         self.formation_controller.update_agent_states(
             self.leader_states,
@@ -357,25 +382,30 @@ class FormationContainmentNode(Node):
             self.follower_velocities
         )
         
-        # Compute control inputs
+        # Compute control inputs (accelerations)
         leader_controls, follower_controls = self.formation_controller.compute_all_controls()
+        
+        # Get target positions for GoTo commands
+        leader_targets = self.formation_controller.get_leader_target_positions()
+        follower_targets = self.formation_controller.get_follower_target_positions()
         
         # Publish leader commands
         for i, drone_id in enumerate(self.leader_ids[:self.n_leaders]):
             self._publish_control(f'leader_{i}', leader_controls[i])
+            if i < len(leader_targets):
+                self._publish_position(f'leader_{i}', leader_targets[i])
         
         # Publish follower commands
         for i, drone_id in enumerate(self.follower_ids[:self.n_followers]):
             self._publish_control(f'follower_{i}', follower_controls[i])
+            if i < len(follower_targets):
+                self._publish_position(f'follower_{i}', follower_targets[i])
         
         # Publish status
         self._publish_status()
     
     def _publish_control(self, agent_key: str, control: np.ndarray):
-        """Publish control command for an agent."""
-        # Convert acceleration control to velocity command (simple integration)
-        # For Crazyswarm2, we often use velocity or position commands
-        
+        """Publish velocity control command for an agent."""
         cmd = Twist()
         
         # The control is [ax, ay, az, Omega] in body frame
@@ -387,6 +417,27 @@ class FormationContainmentNode(Node):
         
         if agent_key in self.cmd_pubs:
             self.cmd_pubs[agent_key].publish(cmd)
+    
+    def _publish_position(self, agent_key: str, target_pos: np.ndarray):
+        """Publish position command for GoTo service (Crazyswarm2)."""
+        pose = PoseStamped()
+        pose.header.frame_id = self.world_frame
+        pose.header.stamp = self.get_clock().now().to_msg()
+        
+        pose.pose.position.x = float(target_pos[0])
+        pose.pose.position.y = float(target_pos[1])
+        pose.pose.position.z = float(target_pos[2]) if len(target_pos) > 2 else self.formation_height
+        
+        # Set orientation (yaw from target if available)
+        yaw = float(target_pos[3]) if len(target_pos) > 3 else 0.0
+        q = euler_to_quaternion(0.0, 0.0, yaw)
+        pose.pose.orientation.x = q[0]
+        pose.pose.orientation.y = q[1]
+        pose.pose.orientation.z = q[2]
+        pose.pose.orientation.w = q[3]
+        
+        if agent_key in self.pose_pubs:
+            self.pose_pubs[agent_key].publish(pose)
     
     def _publish_status(self):
         """Publish formation status."""
