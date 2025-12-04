@@ -66,6 +66,7 @@ class BridgeState(Enum):
     TAKING_OFF = auto()     # Takeoff in progress
     HOVERING = auto()       # Takeoff complete, waiting to start formation
     ACTIVE = auto()         # Formation control active
+    RETURNING_TO_INITIAL = auto()  # Returning to initial positions before landing
     LANDING = auto()        # Landing in progress
     LANDED = auto()         # All drones landed
 
@@ -94,7 +95,10 @@ class CrazyswarmBridge(Node):
         # State machine
         self.state = BridgeState.IDLE
         self.takeoff_start_time: Optional[float] = None
+        self.hover_start_time: Optional[float] = None
         self.drones_taking_off: set = set()
+        self.return_to_initial_start_time: Optional[float] = None
+        self.drones_at_initial: set = set()
         
         # State tracking
         self.drone_states: Dict[int, np.ndarray] = {}
@@ -136,6 +140,15 @@ class CrazyswarmBridge(Node):
         # Timing parameters
         self.declare_parameter('takeoff_duration', 3.0)  # seconds
         self.declare_parameter('hover_duration', 2.0)  # seconds to hover before formation
+        
+        # Initial positions (flat lists: [x1, y1, z1, x2, y2, z2, ...])
+        # Use [0.0] as default to ensure DOUBLE_ARRAY type inference
+        self.declare_parameter('initial_follower_positions', [0.0])
+        self.declare_parameter('initial_leader_positions', [0.0])
+        
+        # Return to initial position parameters
+        self.declare_parameter('return_to_initial_timeout', 15.0)  # seconds to wait for return
+        self.declare_parameter('return_position_tolerance', 0.2)  # meters - position tolerance for "reached"
     
     def _get_parameters(self):
         """Get parameters from ROS2."""
@@ -152,6 +165,45 @@ class CrazyswarmBridge(Node):
         
         self.takeoff_duration = self.get_parameter('takeoff_duration').value
         self.hover_duration = self.get_parameter('hover_duration').value
+        
+        # Get initial positions
+        init_follower_pos = self.get_parameter('initial_follower_positions').value
+        init_leader_pos = self.get_parameter('initial_leader_positions').value
+        
+        # Treat default [0.0] as empty (no positions provided)
+        if init_follower_pos == [0.0]:
+            init_follower_pos = []
+        if init_leader_pos == [0.0]:
+            init_leader_pos = []
+        
+        # Parse initial positions into dictionary: drone_id -> [x, y, z]
+        self.initial_positions: Dict[int, np.ndarray] = {}
+        
+        # Parse follower positions
+        for i, drone_id in enumerate(self.follower_ids):
+            if len(init_follower_pos) >= (i + 1) * 3:
+                pos = np.array(init_follower_pos[i * 3:(i + 1) * 3])
+                self.initial_positions[drone_id] = pos
+                self.get_logger().debug(f"Follower {drone_id} initial position: {pos}")
+            else:
+                self.get_logger().warn(
+                    f"No initial position defined for follower {drone_id} (index {i})"
+                )
+        
+        # Parse leader positions
+        for i, drone_id in enumerate(self.leader_ids):
+            if len(init_leader_pos) >= (i + 1) * 3:
+                pos = np.array(init_leader_pos[i * 3:(i + 1) * 3])
+                self.initial_positions[drone_id] = pos
+                self.get_logger().debug(f"Leader {drone_id} initial position: {pos}")
+            else:
+                self.get_logger().warn(
+                    f"No initial position defined for leader {drone_id} (index {i})"
+                )
+        
+        # Return to initial parameters
+        self.return_to_initial_timeout = self.get_parameter('return_to_initial_timeout').value
+        self.return_position_tolerance = self.get_parameter('return_position_tolerance').value
     
     def _setup_interface(self):
         """Setup ROS2 interface."""
@@ -263,10 +315,16 @@ class CrazyswarmBridge(Node):
     def _stop_service_callback(self, request, response):
         """Handle /formation/stop service call."""
         if self.state in [BridgeState.ACTIVE, BridgeState.HOVERING]:
-            self.get_logger().info("Stopping formation: initiating landing...")
-            self._initiate_landing()
+            self.get_logger().info("Stopping formation: returning to initial positions...")
+            self._initiate_return_to_initial()
             response.success = True
-            response.message = "Landing initiated."
+            response.message = "Returning to initial positions, then landing."
+        elif self.state == BridgeState.RETURNING_TO_INITIAL:
+            response.success = True
+            response.message = "Already returning to initial positions."
+        elif self.state == BridgeState.LANDING:
+            response.success = True
+            response.message = "Already landing."
         elif self.state == BridgeState.IDLE or self.state == BridgeState.LANDED:
             response.success = True
             response.message = "Already on ground."
@@ -291,10 +349,54 @@ class CrazyswarmBridge(Node):
         
         elif self.state == BridgeState.HOVERING:
             # Check if hover duration has elapsed, then auto-activate
-            elapsed = now - self.hover_start_time
-            if elapsed >= self.hover_duration:
-                self.get_logger().info("Hover stabilization complete. Activating formation...")
-                self._activate_formation()
+            if self.hover_start_time is not None:
+                elapsed = now - self.hover_start_time
+                if elapsed >= self.hover_duration:
+                    self.get_logger().info("Hover stabilization complete. Activating formation...")
+                    self._activate_formation()
+        
+        elif self.state == BridgeState.RETURNING_TO_INITIAL:
+            # Check if all drones have reached initial positions or timeout
+            if self.return_to_initial_start_time is not None:
+                elapsed = now - self.return_to_initial_start_time
+                
+                # Check which drones have reached their initial positions
+                for drone_id in self.all_drone_ids:
+                    if drone_id in self.initial_positions and drone_id not in self.drones_at_initial:
+                        if drone_id in self.drone_states:
+                            current_pos = self.drone_states[drone_id][:3]
+                            target_pos = self.initial_positions[drone_id]
+                            distance = np.linalg.norm(current_pos - target_pos)
+                            
+                            if distance < self.return_position_tolerance:
+                                self.drones_at_initial.add(drone_id)
+                                self.get_logger().info(
+                                    f"{self.prefix}{drone_id} reached initial position "
+                                    f"(distance: {distance:.3f} m)"
+                                )
+                
+                # Check if all drones have reached or timeout
+                drones_with_initial_pos = [
+                    did for did in self.all_drone_ids 
+                    if did in self.initial_positions
+                ]
+                
+                if len(drones_with_initial_pos) == 0:
+                    # No initial positions defined, proceed to landing immediately
+                    self.get_logger().warn("No initial positions defined, proceeding to landing")
+                    self._initiate_landing()
+                elif len(self.drones_at_initial) == len(drones_with_initial_pos):
+                    # All drones reached initial positions
+                    self.get_logger().info("All drones reached initial positions. Initiating landing...")
+                    self._initiate_landing()
+                elif elapsed >= self.return_to_initial_timeout:
+                    # Timeout reached
+                    self.get_logger().warn(
+                        f"Timeout ({self.return_to_initial_timeout}s) reached. "
+                        f"Proceeding to landing. "
+                        f"Reached: {len(self.drones_at_initial)}/{len(drones_with_initial_pos)}"
+                    )
+                    self._initiate_landing()
     
     def _initiate_takeoff(self):
         """Initiate takeoff for all drones."""
@@ -349,6 +451,72 @@ class CrazyswarmBridge(Node):
         self.state = BridgeState.ACTIVE
         self._set_formation_enabled(True)
         self.get_logger().info("Formation control ACTIVE")
+    
+    def _initiate_return_to_initial(self):
+        """Initiate return to initial positions for all drones."""
+        # First disable formation control
+        self._set_formation_enabled(False)
+        self.state = BridgeState.RETURNING_TO_INITIAL
+        self.return_to_initial_start_time = self.get_clock().now().nanoseconds / 1e9
+        self.drones_at_initial = set()
+        
+        if CRAZYSWARM2_AVAILABLE:
+            # Send GoTo commands to initial positions
+            for drone_id in self.all_drone_ids:
+                if drone_id in self.initial_positions:
+                    target_pos = self.initial_positions[drone_id]
+                    self.get_logger().info(
+                        f"Sending {self.prefix}{drone_id} to initial position: {target_pos}"
+                    )
+                    # Use a longer duration for return to initial
+                    self._send_goto_to_initial(drone_id, target_pos)
+                else:
+                    self.get_logger().warn(
+                        f"No initial position defined for {self.prefix}{drone_id}, skipping"
+                    )
+        else:
+            self.get_logger().info("Simulation mode: Return to initial simulated")
+            # In simulation, assume they reach immediately
+            self.drones_at_initial = set(self.all_drone_ids)
+    
+    def _send_goto_to_initial(self, drone_id: int, target: np.ndarray):
+        """Send GoTo service request to initial position (with longer duration)."""
+        if drone_id not in self.goto_clients:
+            return
+        
+        client = self.goto_clients[drone_id]
+        
+        if not client.service_is_ready():
+            self.get_logger().warn(f"GoTo service not ready for {self.prefix}{drone_id}")
+            return
+        
+        # Create GoTo request with longer duration for return to initial
+        request = GoTo.Request()
+        request.goal.x = float(target[0])
+        request.goal.y = float(target[1])
+        request.goal.z = float(target[2])
+        request.yaw = 0.0
+        # Use longer duration for return to initial (2x goto_duration)
+        return_duration = self.goto_duration * 2.0
+        # Split duration into seconds and nanoseconds (nanosec must be < 2^32)
+        total_nanosec = int(return_duration * 1e9)
+        max_nanosec = 4294967295  # Max value for uint32
+        if total_nanosec > max_nanosec:
+            sec = total_nanosec // 1_000_000_000
+            nanosec = total_nanosec % 1_000_000_000
+        else:
+            sec = 0
+            nanosec = total_nanosec
+        request.duration = Duration(sec=sec, nanosec=nanosec)
+        request.relative = False
+        request.group_mask = 0
+        
+        # Async call
+        future = client.call_async(request)
+        future.add_done_callback(
+            lambda f, did=drone_id: self._goto_done(f, did)
+        )
+        self.get_logger().debug(f"GoTo to initial sent for {self.prefix}{drone_id}")
     
     def _initiate_landing(self):
         """Initiate landing for all drones."""
@@ -460,10 +628,16 @@ class CrazyswarmBridge(Node):
         request.goal.y = float(target[1])
         request.goal.z = float(target[2])
         request.yaw = 0.0
-        request.duration = Duration(
-            sec=0,
-            nanosec=int(self.goto_duration * 1e9)
-        )
+        # Split duration into seconds and nanoseconds (nanosec must be < 2^32)
+        total_nanosec = int(self.goto_duration * 1e9)
+        max_nanosec = 4294967295  # Max value for uint32
+        if total_nanosec > max_nanosec:
+            sec = total_nanosec // 1_000_000_000
+            nanosec = total_nanosec % 1_000_000_000
+        else:
+            sec = 0
+            nanosec = total_nanosec
+        request.duration = Duration(sec=sec, nanosec=nanosec)
         request.relative = False
         request.group_mask = 0
         

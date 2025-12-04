@@ -374,7 +374,16 @@ class FormationContainmentNode(Node):
         if not self.controller_enabled:
             return  # Skip control when disabled
         
-        # Update formation controller with current states
+        # Get target positions for GoTo commands (open-loop, no odometry needed)
+        leader_targets = self.formation_controller.get_leader_target_positions()
+        
+        # Calculate follower targets using leader targets (open-loop)
+        # This uses the desired positions of leaders instead of their actual odometry
+        follower_targets = self._compute_follower_targets_open_loop(leader_targets)
+        
+        # Update formation controller with current states (if available)
+        # For open-loop, we can use targets as states or skip this
+        # This is still called for status checking, but targets are calculated independently
         self.formation_controller.update_agent_states(
             self.leader_states,
             self.leader_velocities,
@@ -382,12 +391,9 @@ class FormationContainmentNode(Node):
             self.follower_velocities
         )
         
-        # Compute control inputs (accelerations)
+        # Compute control inputs (accelerations) - optional for open-loop
+        # These are calculated but may not be used if only GoTo is used
         leader_controls, follower_controls = self.formation_controller.compute_all_controls()
-        
-        # Get target positions for GoTo commands
-        leader_targets = self.formation_controller.get_leader_target_positions()
-        follower_targets = self.formation_controller.get_follower_target_positions()
         
         # Publish leader commands
         for i, drone_id in enumerate(self.leader_ids[:self.n_leaders]):
@@ -395,7 +401,7 @@ class FormationContainmentNode(Node):
             if i < len(leader_targets):
                 self._publish_position(f'leader_{i}', leader_targets[i])
         
-        # Publish follower commands
+        # Publish follower commands (open-loop: only targets, no feedback)
         for i, drone_id in enumerate(self.follower_ids[:self.n_followers]):
             self._publish_control(f'follower_{i}', follower_controls[i])
             if i < len(follower_targets):
@@ -417,6 +423,30 @@ class FormationContainmentNode(Node):
         
         if agent_key in self.cmd_pubs:
             self.cmd_pubs[agent_key].publish(cmd)
+    
+    def _compute_follower_targets_open_loop(self, leader_targets: np.ndarray) -> np.ndarray:
+        """
+        Compute follower target positions using leader targets (open-loop).
+        
+        This method calculates follower targets based on the desired positions
+        of leaders (not their actual odometry), enabling open-loop control.
+        
+        Uses the containment weights from the interaction network:
+        follower_target = Σ (weights[i,j] × leader_target[j])
+        
+        Args:
+            leader_targets: Array of leader target positions, shape (n_leaders, 4)
+            
+        Returns:
+            Array of follower target positions, shape (n_followers, 4)
+        """
+        # Get containment weights from the network
+        containment_weights = self.formation_controller.network.laplacian.containment_weights
+        
+        # Calculate follower targets: weights @ leader_targets
+        follower_targets = containment_weights @ leader_targets
+        
+        return follower_targets
     
     def _publish_position(self, agent_key: str, target_pos: np.ndarray):
         """Publish position command for GoTo service (Crazyswarm2)."""

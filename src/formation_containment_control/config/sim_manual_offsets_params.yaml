@@ -1,0 +1,214 @@
+# ============================================================================
+# Formation-Containment Control Parameters - MANUAL OFFSETS EXAMPLE
+# ============================================================================
+# This configuration demonstrates loading leader offsets from a custom file.
+# The formation shape is defined in config/leader_offsets.txt
+#
+# Based on: "Collision-Free Formation-Containment Control Based on Adaptive
+# Sliding Mode Strategy for a Quadrotor Fleet Under Disturbances"
+# Authors: Carlos Katt, Herman Castañeda (2025)
+# ============================================================================
+
+# ROS 2 Parameter File Format - applies to all nodes
+/**:
+  ros__parameters:
+    # ============================================================================
+    # AGENT CONFIGURATION
+    # ============================================================================
+    # Number of follower agents (n in paper)
+    n_followers: 1
+
+    # Number of leader agents (m in paper)
+    # NOTE: This should match the number of leaders defined in leader_offsets.txt
+    n_leaders: 3
+
+    # Graph topology: "paper", "complete", "ring"
+    topology: "ring"
+
+    # ============================================================================
+    # FORMATION CONFIGURATION - CUSTOM OFFSETS
+    # ============================================================================
+    # Formation type: set to "custom" to use offsets from YAML file
+    formation_type: "custom"
+
+    # Path to the leader offsets YAML file
+    # Supports absolute paths or paths relative to the package share directory
+    # Set by launch file or provide absolute path here
+    offsets_file: ""  # Will be set by launch file (config/leader_offsets.yaml)
+
+    # Formation scale (meters) - used as fallback if file not found
+    # Does not work with custom offsets
+    formation_scale: 1.0
+
+    # Formation height (meters) - base altitude
+    # Does not work with custom offsets
+    formation_height: 0.0
+
+    # ============================================================================
+    # CONTROL PARAMETERS (From Section 4 of paper)
+    # ============================================================================
+    # Sliding surface parameter λ (Equation 26)
+    lambda_gain: 1.0
+
+    # Adaptive law precision parameter α (Equation 30)
+    alpha: 4.0
+
+    # Adaptive law control effort parameter β (Equation 30)
+    beta: 0.125
+
+    # Safety distance γ_s (Equation 6) for collision avoidance (meters)
+    safety_distance: 1.0
+
+    # Enable/disable collision avoidance
+    use_collision_avoidance: true
+
+    # Maximum velocity limit (m/s)
+    # Does not change the velocity of the drones
+    max_velocity: 1.0
+
+    # ============================================================================
+    # TIMING CONFIGURATION
+    # ============================================================================
+    # Control loop rate (Hz)
+    control_rate: 50.0
+
+    # Control timestep (seconds)
+    dt: 0.02
+
+    # ============================================================================
+    # DRONE CONFIGURATION
+    # ============================================================================
+    # Drone topic prefix
+    drone_prefix: "cf"
+
+    # Follower drone IDs
+    follower_ids: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
+    # Leader drone IDs - must match n_leaders
+    leader_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    # ============================================================================
+    # FRAME CONFIGURATION
+    # ============================================================================
+    world_frame: "world"
+    
+    # ============================================================================
+    # AUTO-ENABLE CONFIGURATION
+    # ============================================================================
+    # auto_enable: true  -> Formation starts immediately (simulation mode)
+    # auto_enable: false -> Formation waits for /formation/enable signal (Crazyswarm2 mode)
+    auto_enable: false
+
+    # ============================================================================
+    # INITIAL CONDITIONS
+    # ============================================================================
+    # Follower initial position
+    initial_follower_positions: [
+    0.0, 0.0, 0.0, 
+    0.0, 1.0, 0.0, 
+    1.0, 0.0, 0.0, 
+    1.0, 1.0, 0.0, 
+    2.0, 0.0, 0.0, 
+    2.0, 1.0, 0.0, 
+    3.0, 0.0, 0.0, 
+    3.0, 1.0, 0.0, 
+    4.0, 0.0, 0.0, 
+    4.0, 1.0, 0.0]
+
+    # Leader initial positions
+    initial_leader_positions: [
+    -1.0, 0.0, 0.0, 
+    -1.0, 1.0, 0.0, 
+    -2.0, 0.0, 0.0, 
+    -2.0, 1.0, 0.0, 
+    -3.0, 0.0, 0.0, 
+    -3.0, 1.0, 0.0, 
+    -4.0, 0.0, 0.0, 
+    -4.0, 1.0, 0.0, 
+    -5.0, 0.0, 0.0,
+    -5.0, 1.0, 0.0]
+
+    # Initial yaw angles
+    initial_yaw: 3.14159
+
+    # ============================================================================
+    # VIRTUAL LEADER TRAJECTORY
+    # ============================================================================
+    
+    # Trajectory type: "lemniscate", "circle", "hover", "square"
+    trajectory_type: "circle"
+
+    # Trajectory scale (meters)
+    trajectory_scale: 0.5
+
+    # Trajectory height (meters) - deprecated, use initial_position_z instead
+    # Does not work with custom offsets
+    trajectory_height: 0.5
+
+    # Trajectory period (seconds)
+    trajectory_period: 60.0 # simulation mode
+    # trajectory_period: 30.0 # crazyswarm2 mode
+
+    # Start delay before motion begins (seconds)
+    start_delay: 30.0 # simulation mode
+    # start_delay: 20.0 # crazyswarm2 mode
+
+    # ============================================================================
+    # VIRTUAL LEADER INITIAL POSITION
+    # ============================================================================
+    # Initial position of the virtual leader (meters)
+    # All trajectories will be offset/centered around this position.
+    # - lemniscate: Center of the figure-8 will be at this position
+    # - circle: Starting point and center offset
+    # - hover: Stationary position
+    # - square: Center of the diamond shape
+    initial_position_x: 0.0
+    initial_position_y: 0.0
+    initial_position_z: 1.0
+
+    # ============================================================================
+    # SIMULATION CONFIGURATION
+    # ============================================================================
+    simulation_rate: 100.0
+    use_turbulence: false
+    turbulence_start_time: 45.0
+    turbulence_intensity: 0.3
+
+    # ============================================================================
+    # VISUALIZATION
+    # ============================================================================
+    trajectory_length: 5000
+    visualization_rate: 10.0
+
+    # ============================================================================
+    # CRAZYSWARM2 BRIDGE
+    # ============================================================================
+    # RECOMMENDED: default_height should match initial_position_z of virtual leader
+    default_height: 1.0
+    
+    # GoTo rate limiting (Hz) - prevents flooding crazyflie_server
+    # Recommended: 5-10 Hz for stable operation
+    goto_rate: 5.0
+    
+    # GoTo command duration (seconds) - time for drone to reach target
+    goto_duration: 2.5
+    
+    # Position threshold (meters) - minimum position change to trigger GoTo
+    # Prevents sending redundant commands when target hasn't changed
+    position_threshold: 0.5 # simulation mode
+    # position_threshold: 0.1 # crazyswarm2 mode
+    
+    # Takeoff duration (seconds) - time to wait for takeoff to complete
+    takeoff_duration: 5.0
+    
+    # Hover duration (seconds) - stabilization time before starting formation
+    hover_duration: 10.0
+    
+    # Return to initial position parameters
+    # Timeout for returning to initial positions before landing (seconds)
+    return_to_initial_timeout: 15.0
+    
+    # Position tolerance for considering a drone "at" its initial position (meters)
+    return_position_tolerance: 0.2
+
+

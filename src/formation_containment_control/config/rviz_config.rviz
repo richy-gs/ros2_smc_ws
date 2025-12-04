@@ -11,6 +11,7 @@ Panels:
         - /Visualization Node Markers1
         - /Trajectories1
         - /Convex Hull1
+        - /TF1
       Splitter Ratio: 0.5
     Tree Height: 787
   - Class: rviz_common/Selection
@@ -130,19 +131,41 @@ Visualization Manager:
         Value: /virtual_leader/pose
       Value: true
     - Class: rviz_default_plugins/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        cf1:
+          Value: true
+        cf11:
+          Value: true
+        cf2:
+          Value: true
+        cf3:
+          Value: true
+        cf4:
+          Value: true
+        world:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        world:
+          cf1:
+            {}
+          cf11:
+            {}
+          cf2:
+            {}
+          cf3:
+            {}
+          cf4:
+            {}
       Update Interval: 0
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -189,7 +212,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 8.69381332397461
+      Distance: 6.053658485412598
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -204,10 +227,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5447965264320374
+      Pitch: -0.0652032122015953
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 2.939990282058716
+      Yaw: 4.014998912811279
     Saved: ~
 Window Geometry:
   Displays:
@@ -215,13 +238,13 @@ Window Geometry:
   Height: 1016
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000001560000039efc0200000004fb000000100044006900730070006c006100790073010000003d0000039e000000c900fffffffb0000001200530065006c0065006300740069006f006e000000019e000000a90000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001f0000000cf0000005c00fffffffb0000000a0056006900650077007300000002710000016a000000a400ffffff000002640000039e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000001560000039efc0200000004fb000000100044006900730070006c006100790073010000003d0000039e000000c900fffffffb0000001200530065006c0065006300740069006f006e000000019e000000a90000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001f0000000cf0000005c00fffffffb0000000a0056006900650077007300000002710000016a000000a400ffffff000006240000039e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:
     collapsed: false
   Views:
     collapsed: false
-  Width: 960
-  X: 960
+  Width: 1920
+  X: 0
   Y: 27
