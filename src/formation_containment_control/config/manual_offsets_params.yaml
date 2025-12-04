@@ -136,20 +136,20 @@
     # ============================================================================
     
     # Trajectory type: "lemniscate", "circle", "hover", "square"
-    trajectory_type: "hover"
+    trajectory_type: "circle"
 
     # Trajectory scale (meters)
-    trajectory_scale: 1.0
+    trajectory_scale: 0.5
 
     # Trajectory height (meters) - deprecated, use initial_position_z instead
     # Does not work with custom offsets
     trajectory_height: 0.5
 
     # Trajectory period (seconds)
-    trajectory_period: 60.0
+    trajectory_period: 20.0
 
     # Start delay before motion begins (seconds)
-    start_delay: 15.0
+    start_delay: 30.0
 
     # ============================================================================
     # VIRTUAL LEADER INITIAL POSITION
@@ -189,17 +189,17 @@
     goto_rate: 5.0
     
     # GoTo command duration (seconds) - time for drone to reach target
-    goto_duration: 1.5
+    goto_duration: 2.5
     
     # Position threshold (meters) - minimum position change to trigger GoTo
     # Prevents sending redundant commands when target hasn't changed
-    position_threshold: 0.5
+    position_threshold: 0.1
     
     # Takeoff duration (seconds) - time to wait for takeoff to complete
     takeoff_duration: 5.0
     
     # Hover duration (seconds) - stabilization time before starting formation
-    hover_duration: 30.0
+    hover_duration: 15.0
 
 
 

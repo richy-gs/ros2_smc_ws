@@ -8,6 +8,7 @@ Panels:
         - /Status1
         - /Grid1
         - /Formation Markers1
+        - /Visualization Node Markers1
         - /Trajectories1
         - /Convex Hull1
       Splitter Ratio: 0.5
@@ -47,24 +48,34 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: true
     - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
+      Enabled: false
       Name: Formation Markers
       Namespaces:
-        followers: true
-        leaders: true
-        virtual_leader: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /formation/markers
-      Value: true
+      Value: false
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: false
+      Name: Visualization Node Markers
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /formation/visualization
+      Value: false
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: Trajectories
       Namespaces:
-        {}
+        vl_trajectory: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -86,10 +97,10 @@ Visualization Manager:
         Value: /formation/convex_hull
       Value: false
     - Class: rviz_default_plugins/Marker
-      Enabled: false
+      Enabled: true
       Name: Virtual Leader
       Namespaces:
-        {}
+        virtual_leader: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -97,13 +108,13 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /virtual_leader/marker
-      Value: false
+      Value: true
     - Alpha: 1
       Axes Length: 0.30000001192092896
       Axes Radius: 0.009999999776482582
       Class: rviz_default_plugins/Pose
       Color: 0; 255; 0
-      Enabled: false
+      Enabled: true
       Head Length: 0.10000000149011612
       Head Radius: 0.05000000074505806
       Name: Virtual Leader Pose
@@ -117,7 +128,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /virtual_leader/pose
-      Value: false
+      Value: true
     - Class: rviz_default_plugins/TF
       Enabled: false
       Frame Timeout: 15
@@ -178,33 +189,33 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 4.139647483825684
+      Distance: 8.69381332397461
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 1
+        X: 0.22956395149230957
+        Y: 1.102698564529419
+        Z: 1.0067836046218872
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.0952032059431076
+      Pitch: 0.5447965264320374
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.214993476867676
+      Yaw: 2.939990282058716
     Saved: ~
 Window Geometry:
   Displays:
-    collapsed: true
+    collapsed: false
   Height: 1016
-  Hide Left Dock: true
+  Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000001d40000039efc0200000004fb000000100044006900730070006c006100790073000000003d0000039e000000c900fffffffb0000001200530065006c0065006300740069006f006e000000019e000000a90000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001f0000000cf0000005c00fffffffb0000000a0056006900650077007300000002710000016a000000a400ffffff000003c00000039e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000001560000039efc0200000004fb000000100044006900730070006c006100790073010000003d0000039e000000c900fffffffb0000001200530065006c0065006300740069006f006e000000019e000000a90000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001f0000000cf0000005c00fffffffb0000000a0056006900650077007300000002710000016a000000a400ffffff000002640000039e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:

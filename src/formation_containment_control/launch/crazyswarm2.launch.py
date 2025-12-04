@@ -80,17 +80,17 @@ def generate_launch_description():
         description='Virtual leader trajectory: circle, lemniscate, hover, square'
     )
 
-    goto_rate_arg = DeclareLaunchArgument(
-        'goto_rate',
-        default_value='10.0',
-        description='Rate limit for GoTo commands (Hz)'
-    )
+    # goto_rate_arg = DeclareLaunchArgument(
+    #     'goto_rate',
+    #     default_value='10.0',
+    #     description='Rate limit for GoTo commands (Hz)'
+    # )
 
-    position_threshold_arg = DeclareLaunchArgument(
-        'position_threshold',
-        default_value='0.05',
-        description='Minimum position change to send GoTo (meters)'
-    )
+    # position_threshold_arg = DeclareLaunchArgument(
+    #     'position_threshold',
+    #     default_value='0.05',
+    #     description='Minimum position change to send GoTo (meters)'
+    # )
 
     # =========================================================================
     # Nodes
@@ -115,7 +115,7 @@ def generate_launch_description():
             config_file,
             {
                 'offsets_file': LaunchConfiguration('offsets_file'),
-                'auto_enable': False,  # Wait for bridge to enable via /formation/enable
+                # 'auto_enable': False,  # Wait for bridge to enable via /formation/enable
             }
         ]
     )
@@ -128,11 +128,20 @@ def generate_launch_description():
         output='screen',
         parameters=[
             config_file,
-            {
-                'goto_rate': LaunchConfiguration('goto_rate'),
-                'position_threshold': LaunchConfiguration('position_threshold'),
-            }
+            # {
+            #     'goto_rate': LaunchConfiguration('goto_rate'),
+            #     'position_threshold': LaunchConfiguration('position_threshold'),
+            # }
         ]
+    )
+    
+    # Visualization node (subscribes to odometry, publishes markers)
+    visualization_node = Node(
+        package='formation_containment_control',
+        executable='visualization_node.py',
+        name='visualization_node',
+        output='screen',
+        parameters=[config_file]
     )
     
     # RViz visualization
@@ -155,12 +164,13 @@ def generate_launch_description():
         use_rviz_arg,
         offsets_file_arg,
         trajectory_type_arg,
-        goto_rate_arg,
-        position_threshold_arg,
+        # goto_rate_arg,
+        # position_threshold_arg,
         
         # Nodes
         virtual_leader_node,
         crazyswarm_bridge_node,
         delayed_formation_controller,
+        visualization_node,
         rviz_node,
     ])
