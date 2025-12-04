@@ -29,7 +29,7 @@
     # FORMATION CONFIGURATION - CUSTOM OFFSETS
     # ============================================================================
     # Formation type: set to "custom" to use offsets from YAML file
-    formation_type: "custom"
+    formation_type: "hover"
 
     # Path to the leader offsets YAML file
     # Supports absolute paths or paths relative to the package share directory
@@ -102,31 +102,32 @@
     # ============================================================================
     # INITIAL CONDITIONS
     # ============================================================================
+    # Check the Crazyflie.yaml file to see the initial positions.
     # Follower initial position
     initial_follower_positions: [
-    0.0, 0.0, 0.0, 
-    0.0, 1.0, 0.0, 
-    1.0, 0.0, 0.0, 
-    1.0, 1.0, 0.0, 
-    2.0, 0.0, 0.0, 
-    2.0, 1.0, 0.0, 
-    3.0, 0.0, 0.0, 
-    3.0, 1.0, 0.0, 
-    4.0, 0.0, 0.0, 
-    4.0, 1.0, 0.0]
+    -2.0, 0.0, 1.0, 
+    0.0, 1.0, 1.0, 
+    1.0, 0.0, 1.0, 
+    1.0, 1.0, 1.0, 
+    2.0, 0.0, 1.0, 
+    2.0, 1.0, 1.0, 
+    3.0, 0.0, 1.0, 
+    3.0, 1.0, 1.0, 
+    4.0, 0.0, 1.0, 
+    4.0, 1.0, 1.0]
 
     # Leader initial positions
     initial_leader_positions: [
-    -1.0, 0.0, 0.0, 
-    -1.0, 1.0, 0.0, 
-    -2.0, 0.0, 0.0, 
-    -2.0, 1.0, 0.0, 
-    -3.0, 0.0, 0.0, 
-    -3.0, 1.0, 0.0, 
-    -4.0, 0.0, 0.0, 
-    -4.0, 1.0, 0.0, 
-    -5.0, 0.0, 0.0,
-    -5.0, 1.0, 0.0]
+    0.0, 0.0, 1.0, 
+    0.0, -1.0, 1.0, 
+    -1.0, 0.0, 1.0, 
+    -1.0, -1.0, 1.0, 
+    -2.0, 0.0, 1.0, 
+    -2.0, -1.0, 1.0, 
+    -3.0, 0.0, 1.0, 
+    -3.0, -1.0, 1.0, 
+    -4.0, 0.0, 1.0,
+    -4.0, 1.0, 1.0]
 
     # Initial yaw angles
     initial_yaw: 3.14159
@@ -146,10 +147,12 @@
     trajectory_height: 0.5
 
     # Trajectory period (seconds)
-    trajectory_period: 20.0
+    # trajectory_period: 60.0 # simulation mode
+    trajectory_period: 30.0 # crazyswarm2 mode
 
     # Start delay before motion begins (seconds)
-    start_delay: 30.0
+    # start_delay: 30.0 # simulation mode
+    start_delay: 20.0 # crazyswarm2 mode
 
     # ============================================================================
     # VIRTUAL LEADER INITIAL POSITION
@@ -193,13 +196,21 @@
     
     # Position threshold (meters) - minimum position change to trigger GoTo
     # Prevents sending redundant commands when target hasn't changed
-    position_threshold: 0.1
+    # position_threshold: 0.5 # simulation mode
+    position_threshold: 0.1 # crazyswarm2 mode
     
     # Takeoff duration (seconds) - time to wait for takeoff to complete
     takeoff_duration: 5.0
     
     # Hover duration (seconds) - stabilization time before starting formation
-    hover_duration: 15.0
+    hover_duration: 10.0
+    
+    # Return to initial position parameters
+    # Timeout for returning to initial positions before landing (seconds)
+    return_to_initial_timeout: 15.0
+    
+    # Position tolerance for considering a drone "at" its initial position (meters)
+    return_position_tolerance: 0.2
 
 
 
