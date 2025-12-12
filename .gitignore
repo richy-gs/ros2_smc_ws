@@ -3,6 +3,7 @@ build/
 install/
 log/
 devel/
+src/formation_simulation
 
 # Python
 __pycache__/

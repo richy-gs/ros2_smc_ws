@@ -100,7 +100,7 @@
 formation_name: "pyramid"
 leaders:
   - id: 4
-    offset: [0.0, 0.0, 0.5, 0.0]      # Top vertex
+    offset: [0.0, 0.0, 0.7, 0.0]      # Top vertex
   - id: 2
     offset: [0.5, 0.0, 0.0, 0.0]     # Base corner 1
   - id: 3
