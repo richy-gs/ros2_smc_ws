@@ -4,7 +4,7 @@ Formation-Containment Control Package
 Implementation of:
 "Collision-Free Formation-Containment Control Based on Adaptive Sliding Mode Strategy
 for a Quadrotor Fleet Under Disturbances"
-by Carlos Katt and Herman Castañeda (2025)
+by Jesus Guerrero, Carlos Katt and Herman Castañeda (2025)
 
 This package provides:
 - Graph theory utilities for multi-agent interaction networks
@@ -52,5 +52,5 @@ from .utils.math_utils import (
 )
 
 __version__ = "1.0.0"
-__author__ = "Carlos Katt, Herman Castañeda"
+__author__ = "Jesus Guerrero, Carlos Katt, Herman Castañeda"
 

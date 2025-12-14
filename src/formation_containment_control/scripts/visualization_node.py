@@ -71,7 +71,7 @@ class VisualizationNode(Node):
             ColorRGBA(r=1.0, g=0.0, b=1.0, a=1.0),  # Magenta
         ]
         self.follower_color = ColorRGBA(r=0.5, g=0.5, b=0.5, a=0.7)  # Gray
-        self.hull_color = ColorRGBA(r=0.0, g=1.0, b=1.0, a=0.3)  # Cyan
+        self.hull_color = ColorRGBA(r=0.0, g=1.0, b=1.0, a=0.9)  # Cyan
         
         # State storage
         self.vl_position = np.zeros(3)

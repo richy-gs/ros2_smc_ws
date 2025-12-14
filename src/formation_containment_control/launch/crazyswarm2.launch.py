@@ -39,7 +39,7 @@ def generate_launch_description():
     pkg_share = FindPackageShare('formation_containment_control')
     
     config_file = PathJoinSubstitution([
-        pkg_share, 'config', 'manual_offsets_params.yaml'
+        pkg_share, 'config', 'sim_manual_offsets_params.yaml'
     ])
 
     default_offsets_file = PathJoinSubstitution([
@@ -154,10 +154,10 @@ def generate_launch_description():
     )
     
     # Delay formation controller to allow other nodes to initialize
-    delayed_formation_controller = TimerAction(
-        period=2.0,
-        actions=[formation_controller_node]
-    )
+    # delayed_formation_controller = TimerAction(
+    #     period=2.0,
+    #     actions=[formation_controller_node]
+    # )
     
     return LaunchDescription([
         # Arguments
@@ -170,7 +170,8 @@ def generate_launch_description():
         # Nodes
         virtual_leader_node,
         crazyswarm_bridge_node,
-        delayed_formation_controller,
+        formation_controller_node,
+        # delayed_formation_controller,
         visualization_node,
         rviz_node,
     ])

@@ -135,37 +135,28 @@
     # ============================================================================
     # VIRTUAL LEADER TRAJECTORY
     # ============================================================================
-    
+
+    # Initial position of the virtual leader (meters)
+    # All trajectories will be offset/centered around this position.
+    initial_position_x: 0.0
+    initial_position_y: 0.0
+    initial_position_z: 1.0
+
     # Trajectory type: "lemniscate", "circle", "hover", "square"
     trajectory_type: "lemniscate"
 
     # Trajectory scale (meters)
     trajectory_scale: 1.0
 
-    # Trajectory height (meters) - deprecated, use initial_position_z instead
-    # Does not work with custom offsets
-    trajectory_height: 0.5
-
     # Trajectory period (seconds)
-    # trajectory_period: 60.0 # simulation mode
-    trajectory_period: 20.0 # crazyswarm2 mode
+    trajectory_period: 20.0
 
     # Start delay before motion begins (seconds)
-    # start_delay: 30.0 # simulation mode
-    start_delay: 20.0 # crazyswarm2 mode
+    start_delay: 20.0
 
-    # ============================================================================
-    # VIRTUAL LEADER INITIAL POSITION
-    # ============================================================================
-    # Initial position of the virtual leader (meters)
-    # All trajectories will be offset/centered around this position.
-    # - lemniscate: Center of the figure-8 will be at this position
-    # - circle: Starting point and center offset
-    # - hover: Stationary position
-    # - square: Center of the diamond shape
-    initial_position_x: 0.0
-    initial_position_y: 0.0
-    initial_position_z: 1.0
+    # Publish rate (Hz) for the timer callback
+    # This is the rate at which the virtual leader will publish its trajectory
+    publish_rate: 5.0
 
     # ============================================================================
     # SIMULATION CONFIGURATION
@@ -178,8 +169,8 @@
     # ============================================================================
     # VISUALIZATION
     # ============================================================================
-    trajectory_length: 5000
-    visualization_rate: 10.0
+    trajectory_length: 500
+    update_rate: 10.0
 
     # ============================================================================
     # CRAZYSWARM2 BRIDGE

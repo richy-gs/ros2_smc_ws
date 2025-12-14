@@ -58,7 +58,7 @@ class FormationContainmentNode(Node):
         /cf<id>/odom or /cf<id>/pose: Individual drone state feedback
         
     Publications:
-        /cf<id>/cmd_vel: Velocity commands for each drone
+        /cf<id>/cmd_vel_legacy: Velocity commands for each drone
         /formation/status: Formation status information
         /formation/markers: Visualization markers
         /formation/convex_hull: Convex hull visualization
@@ -148,12 +148,14 @@ class FormationContainmentNode(Node):
         self.alpha = self.get_parameter('alpha').value
         self.beta = self.get_parameter('beta').value
         self.safety_distance = self.get_parameter('safety_distance').value
-        
-        self.control_rate = self.get_parameter('control_rate').value
-        self.dt = self.get_parameter('dt').value
         self.use_collision_avoidance = self.get_parameter('use_collision_avoidance').value
         self.max_velocity = self.get_parameter('max_velocity').value
         
+        # Control rate
+        self.control_rate = self.get_parameter('control_rate').value
+        self.dt = self.get_parameter('dt').value
+        
+        # Drone naming
         self.drone_prefix = self.get_parameter('drone_prefix').value
         self.follower_ids = self.get_parameter('follower_ids').value
         self.leader_ids = self.get_parameter('leader_ids').value
@@ -221,6 +223,7 @@ class FormationContainmentNode(Node):
         )
         
         # Enable/disable from mission controller
+        # This has to be considered like a service for the future
         self.enable_sub = self.create_subscription(
             Bool,
             '/formation/enable',
@@ -238,7 +241,7 @@ class FormationContainmentNode(Node):
             # State feedback (try both odom and pose topics)
             self.odom_subs[f'follower_{i}'] = self.create_subscription(
                 Odometry,
-                f'/{self.drone_prefix}{drone_id}/odom',
+                f'/{self.drone_prefix}{drone_id}/odom',          # TODO: Change to Pose topic
                 lambda msg, idx=i: self._follower_odom_callback(msg, idx),
                 qos_best_effort
             )
@@ -246,7 +249,7 @@ class FormationContainmentNode(Node):
             # Velocity command
             self.cmd_pubs[f'follower_{i}'] = self.create_publisher(
                 Twist,
-                f'/{self.drone_prefix}{drone_id}/cmd_vel',
+                f'/{self.drone_prefix}{drone_id}/cmd_vel_legacy',
                 qos_reliable
             )
             
@@ -261,14 +264,14 @@ class FormationContainmentNode(Node):
         for i, drone_id in enumerate(self.leader_ids[:self.n_leaders]):
             self.odom_subs[f'leader_{i}'] = self.create_subscription(
                 Odometry,
-                f'/{self.drone_prefix}{drone_id}/odom',
+                f'/{self.drone_prefix}{drone_id}/odom',          # TODO: Change to Pose topic
                 lambda msg, idx=i: self._leader_odom_callback(msg, idx),
                 qos_best_effort
             )
             
             self.cmd_pubs[f'leader_{i}'] = self.create_publisher(
                 Twist,
-                f'/{self.drone_prefix}{drone_id}/cmd_vel',
+                f'/{self.drone_prefix}{drone_id}/cmd_vel_legacy',
                 qos_reliable
             )
             
@@ -279,23 +282,23 @@ class FormationContainmentNode(Node):
             )
         
         # Status and visualization publishers
-        self.status_pub = self.create_publisher(
-            Float64MultiArray,
-            '/formation/status',
-            qos_reliable
-        )
+        # self.status_pub = self.create_publisher(
+        #     Float64MultiArray,
+        #     '/formation/status',
+        #     qos_reliable
+        # )
         
-        self.marker_pub = self.create_publisher(
-            MarkerArray,
-            '/formation/markers',
-            qos_reliable
-        )
+        # self.marker_pub = self.create_publisher(
+        #     MarkerArray,
+        #     '/formation/markers',
+        #     qos_reliable
+        # )
         
-        self.hull_marker_pub = self.create_publisher(
-            Marker,
-            '/formation/convex_hull',
-            qos_reliable
-        )
+        # self.hull_marker_pub = self.create_publisher(
+        #     Marker,
+        #     '/formation/convex_hull',
+        #     qos_reliable
+        # )
         
         # Control timer
         self.control_timer = self.create_timer(
@@ -303,11 +306,11 @@ class FormationContainmentNode(Node):
             self._control_callback
         )
         
-        # Visualization timer (slower rate)
-        self.viz_timer = self.create_timer(
-            0.1,  # 10 Hz
-            self._visualization_callback
-        )
+        # # Visualization timer (slower rate)
+        # self.viz_timer = self.create_timer(
+        #     0.1,  # 10 Hz
+        #     self._visualization_callback
+        # )
     
     def _enable_callback(self, msg: Bool):
         """Handle enable/disable from mission controller."""
@@ -325,7 +328,7 @@ class FormationContainmentNode(Node):
         _, _, yaw = quaternion_to_euler(np.array([q.x, q.y, q.z, q.w]))
         
         # Compute velocity (numerical differentiation)
-        new_state = np.array([pos.x, pos.y, pos.z, yaw])
+        new_state = np.array([pos.x, pos.y, pos.z, yaw])          # TODO: Change the differentiator
         if self.virtual_leader_received:
             self.virtual_leader_velocity = (new_state - self.virtual_leader_state) / self.dt
         
@@ -368,6 +371,8 @@ class FormationContainmentNode(Node):
     
     def _control_callback(self):
         """Main control loop callback."""
+        # TODO: Use velocities instead of use Accelerations
+
         if not self.virtual_leader_received:
             return
         
@@ -398,17 +403,17 @@ class FormationContainmentNode(Node):
         # Publish leader commands
         for i, drone_id in enumerate(self.leader_ids[:self.n_leaders]):
             self._publish_control(f'leader_{i}', leader_controls[i])
-            if i < len(leader_targets):
-                self._publish_position(f'leader_{i}', leader_targets[i])
+            # if i < len(leader_targets):
+            #     self._publish_position(f'leader_{i}', leader_targets[i])
         
         # Publish follower commands (open-loop: only targets, no feedback)
         for i, drone_id in enumerate(self.follower_ids[:self.n_followers]):
             self._publish_control(f'follower_{i}', follower_controls[i])
-            if i < len(follower_targets):
-                self._publish_position(f'follower_{i}', follower_targets[i])
+            # if i < len(follower_targets):
+            #     self._publish_position(f'follower_{i}', follower_targets[i])
         
         # Publish status
-        self._publish_status()
+        # self._publish_status()
     
     def _publish_control(self, agent_key: str, control: np.ndarray):
         """Publish velocity control command for an agent."""
@@ -416,6 +421,7 @@ class FormationContainmentNode(Node):
         
         # The control is [ax, ay, az, Omega] in body frame
         # Convert to velocity command (simplified - assumes small dt)
+        # TODO: change the differentatior
         cmd.linear.x = float(control[0] * self.dt)
         cmd.linear.y = float(control[1] * self.dt)
         cmd.linear.z = float(control[2] * self.dt)
@@ -444,6 +450,13 @@ class FormationContainmentNode(Node):
         containment_weights = self.formation_controller.network.laplacian.containment_weights
         
         # Calculate follower targets: weights @ leader_targets
+        # This line uses the @ operator, which in Python (and numpy) performs matrix multiplication.
+        # Here, `containment_weights` is a 2D numpy array of shape (n_followers, n_leaders),
+        # and `leader_targets` is an array of shape (n_leaders, 4) containing the desired target
+        # positions for each leader.
+        # The operation performs a matrix multiplication so that each follower's target position
+        # is computed as a weighted sum of the leader targets, according to the containment weights.
+        # Effectively: follower_targets[i] = sum_j containment_weights[i, j] * leader_targets[j]
         follower_targets = containment_weights @ leader_targets
         
         return follower_targets
@@ -469,142 +482,142 @@ class FormationContainmentNode(Node):
         if agent_key in self.pose_pubs:
             self.pose_pubs[agent_key].publish(pose)
     
-    def _publish_status(self):
-        """Publish formation status."""
-        status = self.formation_controller.check_formation_status()
+    # def _publish_status(self):
+    #     """Publish formation status."""
+    #     status = self.formation_controller.check_formation_status()
         
-        msg = Float64MultiArray()
-        msg.data = [
-            float(status['formation_achieved']),
-            float(status['containment_achieved']),
-            float(status['collision_free']),
-            status['max_leader_error'],
-            status['max_follower_error'],
-            status['min_inter_agent_distance'],
-            status['convex_hull_volume']
-        ]
+    #     msg = Float64MultiArray()
+    #     msg.data = [
+    #         float(status['formation_achieved']),
+    #         float(status['containment_achieved']),
+    #         float(status['collision_free']),
+    #         status['max_leader_error'],
+    #         status['max_follower_error'],
+    #         status['min_inter_agent_distance'],
+    #         status['convex_hull_volume']
+    #     ]
         
-        self.status_pub.publish(msg)
+    #     self.status_pub.publish(msg)
     
-    def _visualization_callback(self):
-        """Publish visualization markers."""
-        marker_array = MarkerArray()
-        timestamp = self.get_clock().now().to_msg()
+    # def _visualization_callback(self):
+    #     """Publish visualization markers."""
+    #     marker_array = MarkerArray()
+    #     timestamp = self.get_clock().now().to_msg()
         
-        # Virtual leader marker (green sphere)
-        vl_marker = Marker()
-        vl_marker.header.frame_id = self.world_frame
-        vl_marker.header.stamp = timestamp
-        vl_marker.ns = "virtual_leader"
-        vl_marker.id = 0
-        vl_marker.type = Marker.SPHERE
-        vl_marker.action = Marker.ADD
-        vl_marker.pose.position.x = self.virtual_leader_state[0]
-        vl_marker.pose.position.y = self.virtual_leader_state[1]
-        vl_marker.pose.position.z = self.virtual_leader_state[2]
-        vl_marker.scale.x = 0.3
-        vl_marker.scale.y = 0.3
-        vl_marker.scale.z = 0.3
-        vl_marker.color.r = 0.0
-        vl_marker.color.g = 1.0
-        vl_marker.color.b = 0.0
-        vl_marker.color.a = 1.0
-        marker_array.markers.append(vl_marker)
+    #     # Virtual leader marker (green sphere)
+    #     vl_marker = Marker()
+    #     vl_marker.header.frame_id = self.world_frame
+    #     vl_marker.header.stamp = timestamp
+    #     vl_marker.ns = "virtual_leader"
+    #     vl_marker.id = 0
+    #     vl_marker.type = Marker.SPHERE
+    #     vl_marker.action = Marker.ADD
+    #     vl_marker.pose.position.x = self.virtual_leader_state[0]
+    #     vl_marker.pose.position.y = self.virtual_leader_state[1]
+    #     vl_marker.pose.position.z = self.virtual_leader_state[2]
+    #     vl_marker.scale.x = 0.3
+    #     vl_marker.scale.y = 0.3
+    #     vl_marker.scale.z = 0.3
+    #     vl_marker.color.r = 0.0
+    #     vl_marker.color.g = 1.0
+    #     vl_marker.color.b = 0.0
+    #     vl_marker.color.a = 1.0
+    #     marker_array.markers.append(vl_marker)
         
-        # Leader markers (colored spheres)
-        leader_colors = [
-            (1.0, 0.0, 0.0),  # Red
-            (0.0, 0.0, 1.0),  # Blue
-            (1.0, 1.0, 0.0),  # Yellow
-            (1.0, 0.0, 1.0),  # Magenta
-        ]
+    #     # Leader markers (colored spheres)
+    #     leader_colors = [
+    #         (1.0, 0.0, 0.0),  # Red
+    #         (0.0, 0.0, 1.0),  # Blue
+    #         (1.0, 1.0, 0.0),  # Yellow
+    #         (1.0, 0.0, 1.0),  # Magenta
+    #     ]
         
-        for i in range(self.n_leaders):
-            marker = Marker()
-            marker.header.frame_id = self.world_frame
-            marker.header.stamp = timestamp
-            marker.ns = "leaders"
-            marker.id = i
-            marker.type = Marker.SPHERE
-            marker.action = Marker.ADD
-            marker.pose.position.x = self.leader_states[i, 0]
-            marker.pose.position.y = self.leader_states[i, 1]
-            marker.pose.position.z = self.leader_states[i, 2]
-            marker.scale.x = 0.25
-            marker.scale.y = 0.25
-            marker.scale.z = 0.25
-            color = leader_colors[i % len(leader_colors)]
-            marker.color.r = color[0]
-            marker.color.g = color[1]
-            marker.color.b = color[2]
-            marker.color.a = 1.0
-            marker_array.markers.append(marker)
+    #     for i in range(self.n_leaders):
+    #         marker = Marker()
+    #         marker.header.frame_id = self.world_frame
+    #         marker.header.stamp = timestamp
+    #         marker.ns = "leaders"
+    #         marker.id = i
+    #         marker.type = Marker.SPHERE
+    #         marker.action = Marker.ADD
+    #         marker.pose.position.x = self.leader_states[i, 0]
+    #         marker.pose.position.y = self.leader_states[i, 1]
+    #         marker.pose.position.z = self.leader_states[i, 2]
+    #         marker.scale.x = 0.25
+    #         marker.scale.y = 0.25
+    #         marker.scale.z = 0.25
+    #         color = leader_colors[i % len(leader_colors)]
+    #         marker.color.r = color[0]
+    #         marker.color.g = color[1]
+    #         marker.color.b = color[2]
+    #         marker.color.a = 1.0
+    #         marker_array.markers.append(marker)
         
-        # Follower markers (transparent spheres)
-        for i in range(self.n_followers):
-            marker = Marker()
-            marker.header.frame_id = self.world_frame
-            marker.header.stamp = timestamp
-            marker.ns = "followers"
-            marker.id = i
-            marker.type = Marker.SPHERE
-            marker.action = Marker.ADD
-            marker.pose.position.x = self.follower_states[i, 0]
-            marker.pose.position.y = self.follower_states[i, 1]
-            marker.pose.position.z = self.follower_states[i, 2]
-            marker.scale.x = 0.2
-            marker.scale.y = 0.2
-            marker.scale.z = 0.2
-            marker.color.r = 0.5
-            marker.color.g = 0.5
-            marker.color.b = 0.5
-            marker.color.a = 0.7
-            marker_array.markers.append(marker)
+    #     # Follower markers (transparent spheres)
+    #     for i in range(self.n_followers):
+    #         marker = Marker()
+    #         marker.header.frame_id = self.world_frame
+    #         marker.header.stamp = timestamp
+    #         marker.ns = "followers"
+    #         marker.id = i
+    #         marker.type = Marker.SPHERE
+    #         marker.action = Marker.ADD
+    #         marker.pose.position.x = self.follower_states[i, 0]
+    #         marker.pose.position.y = self.follower_states[i, 1]
+    #         marker.pose.position.z = self.follower_states[i, 2]
+    #         marker.scale.x = 0.2
+    #         marker.scale.y = 0.2
+    #         marker.scale.z = 0.2
+    #         marker.color.r = 0.5
+    #         marker.color.g = 0.5
+    #         marker.color.b = 0.5
+    #         marker.color.a = 0.7
+    #         marker_array.markers.append(marker)
         
-        self.marker_pub.publish(marker_array)
+    #     self.marker_pub.publish(marker_array)
         
-        # Convex hull visualization
-        self._publish_convex_hull(timestamp)
+    #     # Convex hull visualization
+    #     self._publish_convex_hull(timestamp)
     
-    def _publish_convex_hull(self, timestamp):
-        """Publish convex hull marker."""
-        hull_data = self.formation_controller.convex_hull.get_visualization_data()
+    # def _publish_convex_hull(self, timestamp):
+    #     """Publish convex hull marker."""
+    #     hull_data = self.formation_controller.convex_hull.get_visualization_data()
         
-        if len(hull_data['vertices']) < 3:
-            return
+    #     if len(hull_data['vertices']) < 3:
+    #         return
         
-        # Line strip for hull edges
-        hull_marker = Marker()
-        hull_marker.header.frame_id = self.world_frame
-        hull_marker.header.stamp = timestamp
-        hull_marker.ns = "convex_hull"
-        hull_marker.id = 0
-        hull_marker.type = Marker.LINE_STRIP
-        hull_marker.action = Marker.ADD
-        hull_marker.scale.x = 0.1  # Line width
-        hull_marker.color.r = 0.0
-        hull_marker.color.g = 1.0
-        hull_marker.color.b = 1.0
-        hull_marker.color.a = 0.5
+    #     # Line strip for hull edges
+    #     hull_marker = Marker()
+    #     hull_marker.header.frame_id = self.world_frame
+    #     hull_marker.header.stamp = timestamp
+    #     hull_marker.ns = "convex_hull"
+    #     hull_marker.id = 0
+    #     hull_marker.type = Marker.LINE_STRIP
+    #     hull_marker.action = Marker.ADD
+    #     hull_marker.scale.x = 0.1  # Line width
+    #     hull_marker.color.r = 0.0
+    #     hull_marker.color.g = 1.0
+    #     hull_marker.color.b = 1.0
+    #     hull_marker.color.a = 0.5
         
-        # Add hull vertices as a closed polygon
-        vertices = hull_data['vertices']
-        for vertex in vertices:
-            p = Point()
-            p.x = float(vertex[0])
-            p.y = float(vertex[1])
-            p.z = float(vertex[2]) if len(vertex) > 2 else self.formation_height
-            hull_marker.points.append(p)
+    #     # Add hull vertices as a closed polygon
+    #     vertices = hull_data['vertices']
+    #     for vertex in vertices:
+    #         p = Point()
+    #         p.x = float(vertex[0])
+    #         p.y = float(vertex[1])
+    #         p.z = float(vertex[2]) if len(vertex) > 2 else self.formation_height
+    #         hull_marker.points.append(p)
         
-        # Close the polygon
-        if len(vertices) > 0:
-            p = Point()
-            p.x = float(vertices[0][0])
-            p.y = float(vertices[0][1])
-            p.z = float(vertices[0][2]) if len(vertices[0]) > 2 else self.formation_height
-            hull_marker.points.append(p)
+    #     # Close the polygon
+    #     if len(vertices) > 0:
+    #         p = Point()
+    #         p.x = float(vertices[0][0])
+    #         p.y = float(vertices[0][1])
+    #         p.z = float(vertices[0][2]) if len(vertices[0]) > 2 else self.formation_height
+    #         hull_marker.points.append(p)
         
-        self.hull_marker_pub.publish(hull_marker)
+    #     self.hull_marker_pub.publish(hull_marker)
 
 
 def main(args=None):

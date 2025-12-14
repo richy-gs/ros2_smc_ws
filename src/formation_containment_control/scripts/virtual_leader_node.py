@@ -10,7 +10,8 @@ Trajectory types supported:
 - Circle
 - Line/waypoints
 - Hover (stationary)
-- Custom (user-defined function)
+- Square waypoints
+- Custom (user-defined function) (not implemented yet)
 
 The virtual leader state χ_0 = [x_0, ẋ_0, y_0, ẏ_0, z_0, ż_0]^T
 is used as reference for leader formation (Equation 7).
@@ -40,8 +41,7 @@ class TrajectoryGenerator:
     """
     
     @staticmethod
-    def infinity_3d(t: float, scale: float = 2.0, 
-                    height: float = 1.0, period: float = 30.0,
+    def infinity_3d(t: float, scale: float = 2.0, period: float = 30.0,
                     initial_position: np.ndarray = None) -> tuple:
         """
         3D infinity (lemniscate) trajectory - as used in paper (Figure 5).
@@ -54,7 +54,6 @@ class TrajectoryGenerator:
         Args:
             t: Time in seconds
             scale: Size of the trajectory
-            height: Base height (used only if initial_position is None)
             period: Time for one complete cycle
             initial_position: Initial position offset [x0, y0, z0]
             
@@ -62,7 +61,7 @@ class TrajectoryGenerator:
             Tuple of (position, velocity, yaw)
         """
         if initial_position is None:
-            initial_position = np.array([0.0, 0.0, height])
+            initial_position = np.array([0.0, 0.0, 1.0])
         
         omega = 2 * np.pi / period
         
@@ -87,8 +86,7 @@ class TrajectoryGenerator:
     
     @staticmethod
     def circle(t: float, radius: float = 2.0,
-               height: float = 1.0, period: float = 20.0,
-               transition_time: float = 5.0,
+               period: float = 20.0, transition_time: float = 5.0,
                initial_position: np.ndarray = None) -> tuple:
         """
         Circular trajectory with smooth start from initial position.
@@ -99,7 +97,6 @@ class TrajectoryGenerator:
         Args:
             t: Time in seconds
             radius: Circle radius
-            height: Height (used only if initial_position is None)
             period: Time for one circle
             transition_time: Time to transition from initial position to full circle
             initial_position: Initial position offset [x0, y0, z0]
@@ -108,7 +105,7 @@ class TrajectoryGenerator:
             Tuple of (position, velocity, yaw)
         """
         if initial_position is None:
-            initial_position = np.array([0.0, 0.0, height])
+            initial_position = np.array([0.0, 0.0, 1.0])
         
         omega = 2 * np.pi / period
         
@@ -148,31 +145,21 @@ class TrajectoryGenerator:
         return position, velocity
     
     @staticmethod
-    def hover(center: np.ndarray = None, height: float = 1.0,
-              initial_position: np.ndarray = None) -> tuple:
+    def hover(initial_position: np.ndarray = None) -> tuple:
         """
         Stationary hover at a point (initial position).
         
         Args:
             center: Center position [x, y] or [x, y, z] (deprecated, use initial_position)
-            height: Height if not specified in center/initial_position
             initial_position: Initial position [x0, y0, z0] - preferred parameter
             
         Returns:
             Tuple of (position, velocity)
         """
-        # Prefer initial_position over center for consistency
-        if initial_position is not None:
-            position = np.array([initial_position[0], initial_position[1], 
-                                initial_position[2], 0.0])
-        elif center is None:
-            position = np.array([0.0, 0.0, height, 0.0])
-        elif len(center) == 2:
-            position = np.array([center[0], center[1], height, 0.0])
-        elif len(center) == 3:
-            position = np.array([center[0], center[1], center[2], 0.0])
-        else:
-            position = center
+        if initial_position is None:
+            initial_position = np.array([0.0, 0.0, 1.0])
+            
+        position = np.array([initial_position[0], initial_position[1], initial_position[2], 0.0])
         
         velocity = np.zeros(4)
         
@@ -180,7 +167,7 @@ class TrajectoryGenerator:
     
     @staticmethod
     def square_waypoints(t: float, size: float = 2.0,
-                        height: float = 1.0, speed: float = 0.5,
+                        speed: float = 0.5,
                         initial_position: np.ndarray = None) -> tuple:
         """
         Square waypoint trajectory with smooth start from initial position.
@@ -191,7 +178,6 @@ class TrajectoryGenerator:
         Args:
             t: Time
             size: Square size (diamond shape centered at initial position)
-            height: Height (used only if initial_position is None)
             speed: Movement speed
             initial_position: Initial position offset [x0, y0, z0]
             
@@ -199,7 +185,7 @@ class TrajectoryGenerator:
             Tuple of (position, velocity)
         """
         if initial_position is None:
-            initial_position = np.array([0.0, 0.0, height])
+            initial_position = np.array([0.0, 0.0, 1.0])
         
         x0, y0, z0 = initial_position[0], initial_position[1], initial_position[2]
         
@@ -262,24 +248,20 @@ class VirtualLeaderNode(Node):
     
     def __init__(self):
         super().__init__('virtual_leader_node')
-        
+
         # Parameters
-        self.declare_parameter('trajectory_type', 'lemniscate')
-        self.declare_parameter('trajectory_scale', 2.0)
-        self.declare_parameter('trajectory_height', 1.0)
-        self.declare_parameter('trajectory_period', 60.0)
-        self.declare_parameter('publish_rate', 50.0)
-        self.declare_parameter('world_frame', 'world')
-        self.declare_parameter('start_delay', 5.0)  # Wait before starting motion
-        
-        # Initial position parameters for the virtual leader
         self.declare_parameter('initial_position_x', 0.0)
         self.declare_parameter('initial_position_y', 0.0)
         self.declare_parameter('initial_position_z', 1.0)
+        self.declare_parameter('trajectory_type', 'lemniscate')
+        self.declare_parameter('trajectory_scale', 2.0)
+        self.declare_parameter('trajectory_period', 60.0)
+        self.declare_parameter('publish_rate', 5.0)
+        self.declare_parameter('world_frame', 'world')
+        self.declare_parameter('start_delay', 5.0)  # Wait before starting motion
         
         self.trajectory_type = self.get_parameter('trajectory_type').value
         self.scale = self.get_parameter('trajectory_scale').value
-        self.height = self.get_parameter('trajectory_height').value
         self.period = self.get_parameter('trajectory_period').value
         self.rate = self.get_parameter('publish_rate').value
         self.frame = self.get_parameter('world_frame').value
@@ -299,17 +281,17 @@ class VirtualLeaderNode(Node):
             10
         )
         
-        self.velocity_pub = self.create_publisher(
-            Twist,
-            '/virtual_leader/velocity',
-            10
-        )
+        # self.velocity_pub = self.create_publisher(
+        #     Twist,
+        #     '/virtual_leader/velocity',
+        #     10
+        # )
         
-        self.marker_pub = self.create_publisher(
-            Marker,
-            '/virtual_leader/marker',
-            10
-        )
+        # self.marker_pub = self.create_publisher(
+        #     Marker,
+        #     '/virtual_leader/marker',
+        #     10
+        # )
         
         # Trajectory timer
         self.start_time = self.get_clock().now()
@@ -338,12 +320,12 @@ class VirtualLeaderNode(Node):
             # Generate trajectory based on type - all offset by initial_position
             if self.trajectory_type == 'lemniscate':
                 position, velocity = TrajectoryGenerator.infinity_3d(
-                    t_traj, self.scale, self.height, self.period,
+                    t_traj, self.scale, self.period,
                     initial_position=self.initial_position
                 )
             elif self.trajectory_type == 'circle':
                 position, velocity = TrajectoryGenerator.circle(
-                    t_traj, self.scale, self.height, self.period,
+                    t_traj, self.scale, self.period,
                     initial_position=self.initial_position
                 )
             elif self.trajectory_type == 'hover':
@@ -352,7 +334,7 @@ class VirtualLeaderNode(Node):
                 )
             elif self.trajectory_type == 'square':
                 position, velocity = TrajectoryGenerator.square_waypoints(
-                    t_traj, self.scale, self.height,
+                    t_traj, self.scale,
                     initial_position=self.initial_position
                 )
             else:
@@ -377,32 +359,32 @@ class VirtualLeaderNode(Node):
         self.pose_pub.publish(pose_msg)
         
         # Publish velocity
-        vel_msg = Twist()
-        vel_msg.linear.x = velocity[0]
-        vel_msg.linear.y = velocity[1]
-        vel_msg.linear.z = velocity[2]
-        vel_msg.angular.z = velocity[3]
+        # vel_msg = Twist()
+        # vel_msg.linear.x = velocity[0]
+        # vel_msg.linear.y = velocity[1]
+        # vel_msg.linear.z = velocity[2]
+        # vel_msg.angular.z = velocity[3]
         
-        self.velocity_pub.publish(vel_msg)
+        # self.velocity_pub.publish(vel_msg)
         
         # Publish marker
-        marker = Marker()
-        marker.header.stamp = now.to_msg()
-        marker.header.frame_id = self.frame
-        marker.ns = "virtual_leader"
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-        marker.pose = pose_msg.pose
-        marker.scale.x = 0.3
-        marker.scale.y = 0.3
-        marker.scale.z = 0.3
-        marker.color.r = 0.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
-        marker.color.a = 1.0
+        # marker = Marker()
+        # marker.header.stamp = now.to_msg()
+        # marker.header.frame_id = self.frame
+        # marker.ns = "virtual_leader"
+        # marker.id = 0
+        # marker.type = Marker.SPHERE
+        # marker.action = Marker.ADD
+        # marker.pose = pose_msg.pose
+        # marker.scale.x = 0.3
+        # marker.scale.y = 0.3
+        # marker.scale.z = 0.3
+        # marker.color.r = 0.0
+        # marker.color.g = 1.0
+        # marker.color.b = 0.0
+        # marker.color.a = 1.0
         
-        self.marker_pub.publish(marker)
+        # self.marker_pub.publish(marker)
 
 
 def main(args=None):
