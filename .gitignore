@@ -1,4 +1,5 @@
 # ROS2 build artifacts
+
 build/
 install/
 log/
@@ -75,3 +76,4 @@ colcon.meta
 # Core dumps
 core
 
+src/formation_containment_control/scripts/test_logs/run_*

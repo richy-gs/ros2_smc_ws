@@ -236,7 +236,7 @@ class SGASMCController:
         K_c_dot = alpha_sqrt * sigma_sqrt - beta_sqrt * self.K_c
         
         # Euler integration
-        self.K_c = self.K_c + K_c_dot * self.params.dt
+        self.K_c = self.K_c + K_c_dot * self.params.dt # TODO: Improve the integration method
         
         # Apply bounds
         self.K_c = np.clip(self.K_c, self.params.K_c_min, self.params.K_c_max)

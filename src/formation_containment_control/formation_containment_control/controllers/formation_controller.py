@@ -469,21 +469,27 @@ class FormationController:
         n_leaders = self.config.n_leaders
         
         # Check for custom offsets file (YAML format)
-        if ftype == "custom" or self.config.offsets_file:
-            result = load_offsets_from_file(self.config.offsets_file)
-            if result is not None:
-                offsets, formation_name = result
-                # Validate number of leaders matches
-                if len(offsets) != n_leaders:
-                    print(f"Warning: Offsets file has {len(offsets)} leaders, "
-                          f"but config expects {n_leaders}. Using file offsets.")
-                    # Adjust n_leaders to match file
-                    self.config.n_leaders = len(offsets)
-                print(f"Loaded '{formation_name}' formation with {len(offsets)} leaders "
-                      f"from: {self.config.offsets_file}")
-                return offsets[:, :3]  # Return x, y, z offsets (ignoring yaw for geometry)
+        # Only load from file if formation_type is explicitly "custom"
+        if ftype == "custom":
+            if self.config.offsets_file:
+                result = load_offsets_from_file(self.config.offsets_file)
+                if result is not None:
+                    offsets, formation_name = result
+                    # Validate number of leaders matches
+                    if len(offsets) != n_leaders:
+                        print(f"Warning: Offsets file has {len(offsets)} leaders, "
+                              f"but config expects {n_leaders}. Using file offsets.")
+                        # Adjust n_leaders to match file
+                        self.config.n_leaders = len(offsets)
+                    print(f"Loaded '{formation_name}' formation with {len(offsets)} leaders "
+                          f"from: {self.config.offsets_file}")
+                    return offsets[:, :3]  # Return x, y, z offsets (ignoring yaw for geometry)
+                else:
+                    print(f"Warning: Could not load offsets from {self.config.offsets_file}. "
+                          f"Using default circle formation.")
+                    return FormationGeometry.circle(n_leaders, scale, height)
             else:
-                print(f"Warning: Could not load offsets from {self.config.offsets_file}. "
+                print(f"Warning: formation_type is 'custom' but no offsets_file specified. "
                       f"Using default circle formation.")
                 return FormationGeometry.circle(n_leaders, scale, height)
         
@@ -548,7 +554,7 @@ class FormationController:
         """
         # Compute leader controls
         leader_controls = np.zeros((self.config.n_leaders, 4))
-        for i, controller in enumerate(self.leader_controllers):
+        for i, controller in enumerate[LeaderController](self.leader_controllers):
             leader_controls[i] = controller.compute_control(
                 self.leader_states[i],
                 self.leader_velocities[i],
@@ -587,7 +593,7 @@ class FormationController:
         for i, controller in enumerate(self.leader_controllers):
             desired = self.virtual_leader_state + controller.formation_offset
             error = np.linalg.norm(self.leader_states[i] - desired)
-            leader_errors.append(error)
+            leader_errors.k(error)
         
         # Check follower containment
         follower_contained = []
@@ -683,7 +689,13 @@ class FormationController:
             Array of target positions, shape (n_leaders, 4) as [x, y, z, yaw]
         """
         targets = np.zeros((self.config.n_leaders, 4))
-        for i, controller in enumerate(self.leader_controllers):
+        # This for loop iterates through all leader controllers.
+        # For each leader (indexed by i), it calculates the desired target position
+        # by adding the virtual leader's current state (position and yaw) to the leader's
+        # specific formation offset. The result is stored in the targets array.
+        # Effectively, this computes where each leader should be, relative to the virtual leader,
+        # to maintain the correct formation shape.
+        for i, controller in enumerate[LeaderController](self.leader_controllers):
             targets[i] = self.virtual_leader_state + controller.formation_offset
         return targets
     
@@ -698,7 +710,7 @@ class FormationController:
             Array of target positions, shape (n_followers, 4) as [x, y, z, yaw]
         """
         targets = np.zeros((self.config.n_followers, 4))
-        for i, controller in enumerate(self.follower_controllers):
+        for i, controller in enumerate[FollowerController](self.follower_controllers):
             targets[i] = controller.get_desired_position(self.leader_states)
         return targets
     

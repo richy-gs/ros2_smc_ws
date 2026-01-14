@@ -20,7 +20,7 @@
 
     # Number of leader agents (m in paper)
     # NOTE: This should match the number of leaders defined in leader_offsets.txt
-    n_leaders: 4
+    n_leaders: 2
 
     # Graph topology: "paper", "complete", "ring"
     topology: "complete"
@@ -29,7 +29,7 @@
     # FORMATION CONFIGURATION - CUSTOM OFFSETS
     # ============================================================================
     # Formation type: set to "custom" to use offsets from YAML file
-    formation_type: "custom"
+    formation_type: "circle"
 
     # Path to the leader offsets YAML file
     # Supports absolute paths or paths relative to the package share directory
@@ -47,24 +47,24 @@
     # ============================================================================
     # CONTROL PARAMETERS (From Section 4 of paper)
     # ============================================================================
-    # Sliding surface parameter λ (Equation 26)
+    # Sliding surface parameter λ (Equation 26) (1 - 2)
     lambda_gain: 1.0
 
-    # Adaptive law precision parameter α (Equation 30)
+    # Adaptive law precision parameter α (Equation 30) (1 - 4)
     alpha: 4.0
 
-    # Adaptive law control effort parameter β (Equation 30)
-    beta: 0.125
+    # Adaptive law control effort parameter β (Equation 30) (0.3 - 0.5)
+    beta: 0.04
 
     # Safety distance γ_s (Equation 6) for collision avoidance (meters)
-    safety_distance: 1.0
+    safety_distance: 0.3
 
     # Enable/disable collision avoidance
-    use_collision_avoidance: true
+    use_collision_avoidance: false
 
     # Maximum velocity limit (m/s)
     # Does not change the velocity of the drones
-    max_velocity: 1.0
+    max_velocity: 3.0
 
     # ============================================================================
     # TIMING CONFIGURATION
@@ -72,16 +72,19 @@
     # Control loop rate (Hz)
     # This is the rate at which the formation controller will publish the control commands
     # It means how fast the control outputs will be published
-    control_rate: 5.0
+    control_rate: 50.0
 
     # Control timestep (seconds)
-    dt: 0.02
+    dt: 0.01
+
+    # Control mode: "position", "velocity", "full_state"
+    control_mode: "full_state"
 
     # ============================================================================
     # DRONE CONFIGURATION
     # ============================================================================
     # Drone topic prefix
-    drone_prefix: "cf"
+    drone_prefix: "cf_"
 
     # Follower drone IDs
     follower_ids: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
@@ -138,17 +141,17 @@
     # ============================================================================
     
     # Trajectory type: "lemniscate", "circle", "hover", "square"
-    trajectory_type: "lemniscate"
+    trajectory_type: "hover"
 
     # Trajectory scale (meters)
-    trajectory_scale: 1.5
+    trajectory_scale: 0.5
 
     # Trajectory height (meters) - deprecated, use initial_position_z instead
     # Does not work when it
     trajectory_height: 0.5
 
     # Trajectory period (seconds)
-    trajectory_period: 60.0 # simulation mode
+    trajectory_period: 80.0 # simulation mode
     # trajectory_period: 30.0 # crazyswarm2 mode
 
     # Start delay before motion begins (seconds)
@@ -181,7 +184,7 @@
     # ============================================================================
     # VISUALIZATION NODE
     # ============================================================================
-    trajectory_length: 500
+    trajectory_length: 1500
     update_rate: 10.0
 
     # ============================================================================
@@ -203,10 +206,10 @@
     # position_threshold: 0.1 # crazyswarm2 mode
     
     # Takeoff duration (seconds) - time to wait for takeoff to complete
-    takeoff_duration: 3.0
+    takeoff_duration: 5.0
     
     # Hover duration (seconds) - stabilization time before starting formation
-    hover_duration: 5.0
+    hover_duration: 10.0
     
     # Return to initial position parameters
     # Timeout for returning to initial positions before landing (seconds)

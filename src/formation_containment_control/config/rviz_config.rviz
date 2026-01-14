@@ -65,13 +65,13 @@ Visualization Manager:
       Axes Radius: 0.009999999776482582
       Class: rviz_default_plugins/Pose
       Color: 0; 255; 0
-      Enabled: false
+      Enabled: true
       Head Length: 0.10000000149011612
       Head Radius: 0.05000000074505806
       Name: Virtual Leader Pose
       Shaft Length: 0.20000000298023224
       Shaft Radius: 0.019999999552965164
-      Shape: Arrow
+      Shape: Axes
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -79,7 +79,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /virtual_leader/pose
-      Value: false
+      Value: true
     - Class: rviz_default_plugins/TF
       Enabled: true
       Frame Timeout: 15
@@ -92,8 +92,6 @@ Visualization Manager:
         cf2:
           Value: true
         cf3:
-          Value: true
-        cf4:
           Value: true
         world:
           Value: true
@@ -112,17 +110,15 @@ Visualization Manager:
             {}
           cf3:
             {}
-          cf4:
-            {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        convex_hull: true
+        convex_hull: false
         followers: true
-        formation_lines: true
+        formation_lines: false
         leaders: true
         virtual_leader: true
       Topic:
@@ -140,7 +136,6 @@ Visualization Manager:
         leader_0_trajectory: true
         leader_1_trajectory: true
         leader_2_trajectory: true
-        leader_3_trajectory: true
         vl_trajectory: true
       Topic:
         Depth: 5
@@ -195,25 +190,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 5.9871907234191895
+      Distance: 5.781696796417236
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.22956395149230957
-        Y: 1.102698564529419
-        Z: 1.0067836046218872
+        X: 0.3553244471549988
+        Y: 0.896189272403717
+        Z: 0.28116539120674133
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.17479635775089264
+      Pitch: 0.3197963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.744999408721924
+      Yaw: 4.354999542236328
     Saved: ~
 Window Geometry:
   Displays:
