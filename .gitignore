@@ -74,6 +74,6 @@ colcon.meta
 # *.db3
 
 # Core dumps
-core
+# core
 
 src/formation_containment_control/scripts/test_logs/run_*
